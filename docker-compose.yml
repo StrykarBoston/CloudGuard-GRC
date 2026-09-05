@@ -1,0 +1,79 @@
+services:
+  postgres:
+    image: postgres:15.8-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-cloudguard}
+      POSTGRES_USER: ${POSTGRES_USER:-cloudguard}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change-me-for-local-development}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  redis:
+    image: redis:7.4-alpine
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  localstack:
+    image: localstack/localstack:3.8
+    environment:
+      SERVICES: sts,s3,iam,ec2,cloudtrail
+      DEBUG: "0"
+    ports:
+      - "${LOCALSTACK_PORT:-4566}:4566"
+    volumes:
+      - localstack_data:/var/lib/localstack
+    healthcheck:
+      test: ["CMD-SHELL", "awslocal sts get-caller-identity >/dev/null 2>&1 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+  api:
+    build:
+      context: ./apps/api
+    environment:
+      APP_ENV: ${APP_ENV:-development}
+      DATABASE_URL: ${DATABASE_URL:-postgresql+asyncpg://cloudguard:change-me-for-local-development@postgres:5432/cloudguard}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
+      AWS_ENDPOINT_URL: ${AWS_ENDPOINT_URL:-http://localstack:4566}
+    ports:
+      - "${API_PORT:-8000}:8000"
+    volumes:
+      - ./apps/api:/app
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      localstack:
+        condition: service_healthy
+
+  web:
+    environment:
+      VITE_API_PROXY_TARGET: http://api:8000
+    build:
+      context: ./apps/web
+    ports:
+      - "${WEB_PORT:-5173}:5173"
+    volumes:
+      - ./apps/web:/app
+      - /app/node_modules
+    depends_on:
+      api:
+        condition: service_started
+
+volumes:
+  postgres_data:
+  localstack_data:

@@ -1,0 +1,54 @@
+[build-system]
+requires = ["hatchling==1.26.3"]
+build-backend = "hatchling.build"
+
+[project]
+name = "cloudguard-grc-api"
+version = "0.1.0"
+description = "CloudGuard GRC FastAPI service"
+requires-python = ">=3.11,<3.13"
+dependencies = [
+  "fastapi==0.115.6",
+  "uvicorn[standard]==0.34.0",
+  "pydantic-settings==2.7.1",
+  "sqlalchemy[asyncio]==2.0.36",
+  "asyncpg==0.30.0",
+  "aiosqlite==0.20.0",
+  "alembic==1.14.0",
+  "email-validator==2.2.0",
+  "boto3==1.35.86",
+  "PyJWT==2.10.1",
+  "passlib[argon2]==1.7.4",
+  "psycopg2-binary>=2.9.12",
+]
+
+[project.optional-dependencies]
+dev = [
+  "httpx==0.28.1",
+  "pytest==8.3.4",
+  "pytest-asyncio==0.25.0",
+  "ruff==0.8.4",
+  "mypy==1.13.0",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["app"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+pythonpath = ["."]
+asyncio_default_fixture_loop_scope = "function"
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+src = ["app", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+files = ["app"]

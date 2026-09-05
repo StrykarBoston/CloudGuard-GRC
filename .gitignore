@@ -1,0 +1,31 @@
+# Environment and local service data
+.env
+.env.*
+!.env.example
+postgres_data/
+localstack_data/
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.venv/
+apps/api/.venv/
+*.db
+*.sqlite
+*.sqlite3
+
+# Node / Vite
+node_modules/
+apps/web/node_modules/
+apps/web/dist/
+coverage/
+playwright-report/
+test-results/
+
+# Editors / OS
+.DS_Store
+Thumbs.db
+.vscode/
