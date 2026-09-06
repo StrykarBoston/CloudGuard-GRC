@@ -53,17 +53,17 @@ export const AppShell: React.FC = () => {
   return (
     <div className="min-h-screen bg-background text-on-surface flex font-body antialiased">
       {/* Desktop SideNavBar */}
-      <aside className="hidden md:flex flex-col h-screen w-64 fixed left-0 top-0 bg-surface-container-lowest border-r border-outline-variant/60 shadow-2xl z-30">
+      <aside className="hidden md:flex flex-col h-screen w-64 fixed left-0 top-0 bg-surface border-r border-outline-variant shadow-sm z-30">
         {/* Brand Header */}
-        <div className="p-6 border-b border-outline-variant/30 flex items-center gap-3">
-          <div className="w-10 h-10 rounded-lg bg-primary/10 border border-primary/30 flex items-center justify-center text-primary shadow-[0_0_12px_rgba(0,212,255,0.2)]">
+        <div className="p-6 border-b border-outline-variant flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center text-primary shadow-sm shadow-blue-500/10">
             <Shield className="w-5 h-5 fill-primary/20 text-primary" />
           </div>
           <div>
             <span className="text-lg font-headline font-bold text-primary tracking-tight block">
               CloudGuard GRC
             </span>
-            <span className="text-[11px] text-on-surface-variant font-label tracking-wider uppercase">
+            <span className="text-[11px] text-on-surface-variant font-label tracking-wider uppercase font-semibold">
               Enterprise Security
             </span>
           </div>
@@ -80,8 +80,8 @@ export const AppShell: React.FC = () => {
                 className={({ isActive }) =>
                   `flex items-center gap-3 px-4 py-3 rounded-lg font-label text-sm transition-all duration-200 ${
                     isActive
-                      ? 'bg-secondary-container text-on-secondary-container font-semibold shadow-inner border border-primary/20 scale-[0.98]'
-                      : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high'
+                      ? 'bg-secondary-container text-on-secondary-container font-semibold border-l-4 border-primary shadow-xs'
+                      : 'text-on-surface-variant hover:text-primary hover:bg-surface-container'
                   }`
                 }
               >
@@ -93,13 +93,13 @@ export const AppShell: React.FC = () => {
         </nav>
 
         {/* User Profile Footer */}
-        <div className="p-4 border-t border-outline-variant/40 bg-surface-container-low/30">
+        <div className="p-4 border-t border-outline-variant bg-surface-container/60">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-full bg-primary-container/20 border border-primary/30 flex items-center justify-center text-primary font-bold text-xs">
+            <div className="w-9 h-9 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center text-primary font-bold text-xs">
               {user?.full_name?.slice(0, 2).toUpperCase() || 'AD'}
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-on-surface truncate">
+              <p className="text-sm font-semibold text-on-surface truncate">
                 {user?.full_name || 'Admin User'}
               </p>
               <p className="text-xs text-on-surface-variant truncate">
@@ -114,10 +114,10 @@ export const AppShell: React.FC = () => {
       {mobileNavOpen && (
         <div className="fixed inset-0 z-50 md:hidden flex">
           <div
-            className="fixed inset-0 bg-black/70 backdrop-blur-sm"
+            className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs transition-opacity"
             onClick={() => setMobileNavOpen(false)}
           />
-          <div className="relative w-64 bg-surface-container-lowest border-r border-outline-variant p-6 flex flex-col h-full z-10">
+          <div className="relative w-64 bg-surface border-r border-outline-variant shadow-2xl p-6 flex flex-col h-full z-10">
             <div className="flex justify-between items-center mb-6">
               <div className="flex items-center gap-2 text-primary font-headline font-bold text-lg">
                 <Shield className="w-5 h-5" /> CloudGuard
@@ -164,7 +164,7 @@ export const AppShell: React.FC = () => {
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col md:ml-64 min-h-screen">
         {/* TopNavBar */}
-        <header className="sticky top-0 z-20 h-16 bg-surface/85 backdrop-blur-md border-b border-outline-variant/60 px-6 flex items-center justify-between">
+        <header className="sticky top-0 z-20 h-16 bg-surface/90 backdrop-blur-md border-b border-outline-variant px-6 flex items-center justify-between shadow-xs">
           <div className="flex items-center gap-3">
             <button
               onClick={() => setMobileNavOpen(true)}
@@ -172,10 +172,10 @@ export const AppShell: React.FC = () => {
             >
               <Menu className="w-5 h-5" />
             </button>
-            <div className="hidden sm:flex items-center gap-2 text-xs font-label bg-surface-container px-3 py-1.5 rounded-full border border-outline-variant/40">
+            <div className="hidden sm:flex items-center gap-2 text-xs font-label bg-surface-container-low px-3 py-1.5 rounded-full border border-outline-variant">
               <span className="w-2 h-2 rounded-full bg-passed animate-pulse" />
-              <span className="text-on-surface-variant">Active Target:</span>
-              <span className="text-on-surface font-medium">
+              <span className="text-on-surface-variant font-medium">Active Target:</span>
+              <span className="text-on-surface font-semibold">
                 {accounts[0]?.account_alias || 'Production-AWS'}
               </span>
             </div>
@@ -186,9 +186,9 @@ export const AppShell: React.FC = () => {
             <button
               onClick={handleTriggerScan}
               disabled={isScanning || accounts.length === 0}
-              className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-label font-semibold transition-all shadow-[0_0_12px_rgba(0,212,255,0.15)] ${
+              className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-label font-semibold transition-all shadow-md shadow-blue-500/15 ${
                 isScanning || accounts.length === 0
-                  ? 'bg-surface-container text-primary border border-primary/40 cursor-not-allowed'
+                  ? 'bg-surface-container-low text-primary border border-primary/30 cursor-not-allowed'
                   : 'bg-primary text-on-primary hover:bg-primary-container active:scale-95'
               }`}
             >
@@ -207,19 +207,19 @@ export const AppShell: React.FC = () => {
 
             <button
               title="Notifications"
-              className="text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high p-2 rounded-lg transition-colors"
+              className="text-on-surface-variant hover:text-on-surface hover:bg-surface-container p-2 rounded-lg transition-colors"
             >
               <Bell className="w-4 h-4" />
             </button>
 
             <button
               title="Help & Support"
-              className="text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high p-2 rounded-lg transition-colors hidden sm:block"
+              className="text-on-surface-variant hover:text-on-surface hover:bg-surface-container p-2 rounded-lg transition-colors hidden sm:block"
             >
               <HelpCircle className="w-4 h-4" />
             </button>
 
-            <div className="h-5 w-px bg-outline-variant/60 hidden sm:block" />
+            <div className="h-5 w-px bg-outline-variant hidden sm:block" />
 
             <button
               onClick={handleLogout}
@@ -235,7 +235,7 @@ export const AppShell: React.FC = () => {
         {isScanning && (
           <div className="w-full bg-surface-container-low h-1 overflow-hidden">
             <div
-              className="bg-primary h-full transition-all duration-300 shadow-[0_0_8px_#00D4FF]"
+              className="bg-primary h-full transition-all duration-300 shadow-sm shadow-blue-500"
               style={{ width: `${scanProgress}%` }}
             />
           </div>

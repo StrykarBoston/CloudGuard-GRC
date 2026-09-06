@@ -6,6 +6,8 @@ from httpx import ASGITransport, AsyncClient
 from app.main import app
 from app.db import engine
 
+pytestmark = pytest.mark.usefixtures("clean_database_fixture")
+
 
 
 

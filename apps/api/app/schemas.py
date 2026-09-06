@@ -29,4 +29,4 @@ class DashboardOut(BaseModel):
 class ComplianceControl(BaseModel):
     id: str; control_id: str; title: str; status: str; mapped_rules: list[str]; description: str
 class FrameworkOut(BaseModel):
-    id: str; name: str; version: str; description: str; score: int; active_accounts: int; passed_controls: int; total_controls: int; status: str; controls: list[ComplianceControl]
+    id: str; name: str; version: str; description: str; score: int; score_type: str; assurance_status: str; active_accounts: int; passed_controls: int; total_controls: int; status: str; controls: list[ComplianceControl]

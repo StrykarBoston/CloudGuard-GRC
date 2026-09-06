@@ -1,5 +1,6 @@
 # CloudGuard GRC
 
+CloudGuard GRC is an agentless, read-only AWS cloud-security auditing and GRC automation platform. It is being built as a local-first MVP before production deployment.
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.115+-009688.svg)](https://fastapi.tiangolo.com)
@@ -7,14 +8,21 @@
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15+-336791.svg)](https://www.postgresql.org/)
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind-v3+-38B2AC.svg)](https://tailwindcss.com/)
 
+## Phase 1 status
 **CloudGuard GRC** is an open-source, agentless Cloud Security Posture Management (**CSPM**) and **GRC automation platform** for AWS. Built for security engineers, compliance auditors, and DevOps teams, CloudGuard GRC automates the continuous security auditing lifecycle:
 
+Phase 1 establishes the monorepo layout, reproducible local dependencies, Docker Compose services, and baseline API/web health checks. No AWS mutation or credential storage is implemented.
 $$\text{Find} \longrightarrow \text{Explain} \longrightarrow \text{Prioritize} \longrightarrow \text{Map to GRC Controls} \longrightarrow \text{Remediate (Terraform/CLI)} \longrightarrow \text{Audit Report}$$
 
+## Prerequisites
 ---
 
+- Docker Desktop with Compose v2
+- Node.js 20.19+ or 22.12+
+- Python 3.11+
 ## 🚀 Key Features
 
+## Local startup
 - **🛡️ Agentless & Read-Only AWS Auditing**: Zero agents required. Connects via dedicated read-only IAM roles using AWS STS `AssumeRole` with unique `ExternalId` parameters to prevent Confused Deputy attacks.
 - **⚡ Deterministic CIS Rules Engine**: Out-of-the-box checks aligned with **CIS AWS Foundations Benchmark v1.4.0**:
   - `aws.iam.root-mfa`: Enforce hardware/virtual MFA on AWS root accounts.
@@ -35,10 +43,15 @@ $$\text{Find} \longrightarrow \text{Explain} \longrightarrow \text{Prioritize} \
 - **🛠️ Actionable Remediation Guidance**: Every finding provides copyable **Terraform HCL** blocks and **AWS CLI** commands for immediate resolution.
 - **🚨 Real-Time Webhook Alerting**: Formats and dispatches critical security notifications formatted for Slack Block Kit.
 
+1. Copy `.env.example` to `.env` and replace the local database password.
+2. Run `docker compose up --build`.
+3. Open `http://localhost:5173` and check `http://localhost:8000/health`.
 ---
 
+For faster host-based development, see `apps/api/README.md` and `apps/web/README.md`.
 ## 🏗️ Architecture
 
+## Repository layout
 ```text
 React 18 + TypeScript + Vite + TailwindCSS
                   │ (REST / JSON)
@@ -151,6 +164,10 @@ uv run pytest -v
 ## 📁 Repository Structure
 
 ```text
+apps/
+  api/   FastAPI service: routes -> services -> repositories -> data layer
+  web/   React + TypeScript + Vite client
+docs/    Architecture decisions
 .
 ├── apps/
 │   ├── api/                     # FastAPI Backend Service
@@ -175,8 +192,10 @@ uv run pytest -v
 └── README.md
 ```
 
+## Security boundary
 ---
 
+CloudGuard’s MVP is read-only. AWS access will be server-side only, through a dedicated role and STS AssumeRole with an ExternalId. Never add AWS credentials to source control or browser code.
 ## 🛡️ Security Boundary & Guidelines
 
 1. **Read-Only Enforced**: CloudGuard GRC contains no destructive AWS API mutation calls.

@@ -1,6 +1,7 @@
 import asyncio
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 
 from fastapi import Depends, FastAPI, HTTPException, Response, status
 from fastapi.middleware.cors import CORSMiddleware
@@ -15,7 +16,8 @@ from app.db import engine, get_session
 from app.dependencies import current_user, require_roles, get_tenant_repo
 from app.models import Base, CloudAccount, Finding, Scan, Session, Tenant, User
 from app.repositories import TenantRepository
-from app.schemas import AccountOnboardIn, AccountOut, DashboardOut, FindingOut, FindingStatusIn, FrameworkOut, LoginIn, RefreshIn, RegisterIn, ScanOut, ScanStartIn, TokenOut, UserOut
+from app.schemas import AccountOnboardIn, AccountOut, ComplianceControl, DashboardOut, FindingOut, FindingStatusIn, FrameworkOut, LoginIn, RefreshIn, RegisterIn, ScanOut, ScanStartIn, TokenOut, UserOut
+from app.services.compliance import build_frameworks
 from app.services.reporter import generate_executive_html_report
 from app.services.scanner import run_scan
 from app.services.secret_scanner import scan_content, scan_local_path
@@ -115,7 +117,7 @@ async def start_scan(payload: ScanStartIn, user: User = Depends(require_roles("S
     scan = Scan(tenant_id=user.tenant_id, cloud_account_id=payload.cloud_account_id)
     session.add(scan); await session.flush()
     await repo.add_audit_event(user.id, "scan.started", {"scan_id": scan.id, "account_id": payload.cloud_account_id})
-    await session.commit(); asyncio.create_task(run_scan(scan.id))
+    await session.commit(); asyncio.create_task(run_scan(scan.id, user.tenant_id))
     return scan
 
 @app.get("/api/v1/scans", response_model=list[ScanOut])
@@ -149,41 +151,8 @@ async def dashboard(user: User = Depends(current_user), repo: TenantRepository =
 @app.get("/api/v1/compliance", response_model=list[FrameworkOut])
 async def compliance(user: User = Depends(current_user), repo: TenantRepository = Depends(get_tenant_repo)) -> list[FrameworkOut]:
     records = await repo.findings()
-    failed = {item.rule_id for item in records if item.status == "OPEN"}
-    source = [
-        # CIS AWS Foundations Benchmark v1.4.0
-        ("1.5", "Ensure MFA is enabled for the 'root' user account", "aws.iam.root-mfa", "CIS AWS Foundations Benchmark", "v1.4.0"),
-        ("1.14", "Ensure access keys are rotated every 90 days or less", "aws.iam.stale-access-keys", "CIS AWS Foundations Benchmark", "v1.4.0"),
-        ("1.16", "Ensure IAM policies that grant full '*:*' administrative privileges are not created", "aws.iam.wildcard-admin", "CIS AWS Foundations Benchmark", "v1.4.0"),
-        ("2.1.1", "Ensure S3 Block Public Access setting is enabled at the bucket level", "aws.s3.public-access-block", "CIS AWS Foundations Benchmark", "v1.4.0"),
-        ("2.1.2", "Ensure S3 default encryption is enabled", "aws.s3.default-encryption", "CIS AWS Foundations Benchmark", "v1.4.0"),
-        ("3.1", "Ensure CloudTrail multi-region audit logging is enabled", "aws.cloudtrail.logging-enabled", "CIS AWS Foundations Benchmark", "v1.4.0"),
-        ("5.2", "Ensure no security groups allow unrestricted ingress to port 22 (SSH)", "aws.ec2.security-group.open-admin", "CIS AWS Foundations Benchmark", "v1.4.0"),
-        # GDPR
-        ("Art. 32(1)(a)", "Security of processing: Encryption of personal data", "aws.s3.default-encryption", "GDPR", "EU 2016/679"),
-        ("Art. 32(1)(b)", "Ability to ensure confidentiality and integrity of systems", "aws.s3.public-access-block", "GDPR", "EU 2016/679"),
-        ("Art. 33", "Incident detection and logging capability", "aws.cloudtrail.logging-enabled", "GDPR", "EU 2016/679"),
-        # DPDPA 2023
-        ("Sec. 8(4)", "Access controls and credential safeguards", "aws.iam.root-mfa", "DPDPA", "2023"),
-        ("Sec. 8(5)", "Reasonable security safeguards against data breach", "aws.s3.public-access-block", "DPDPA", "2023"),
-        ("Sec. 8(6)", "Prevention of unauthorized access and privilege escalation", "aws.iam.wildcard-admin", "DPDPA", "2023"),
-        # ISO 27001:2022
-        ("A.5.15", "Access control and authentication management", "aws.iam.root-mfa", "ISO/IEC 27001", "2022"),
-        ("A.8.12", "Data leakage prevention and credential hygiene", "aws.iam.stale-access-keys", "ISO/IEC 27001", "2022"),
-        ("A.8.20", "Network security and ingress restrictions", "aws.ec2.security-group.open-admin", "ISO/IEC 27001", "2022"),
-        ("A.8.24", "Use of cryptography and data-at-rest encryption", "aws.s3.default-encryption", "ISO/IEC 27001", "2022")
-    ]
-    frameworks: dict[str, FrameworkOut] = {}
-    for control_id, title, rule, name, version in source:
-        framework = frameworks.setdefault(name, FrameworkOut(id=name.lower().replace(" ", "-").replace("/", "-"), name=name, version=version, description="Technical mappings from completed scans; this is not a certification.", score=100, active_accounts=0, passed_controls=0, total_controls=0, status="ACTIVE", controls=[]))
-        framework.controls.append({"id": f"{framework.id}-{control_id}", "control_id": control_id, "title": title, "status": "FAIL" if rule in failed else "PASS", "mapped_rules": [rule], "description": "Derived from deterministic read-only scan evidence."})
     account_count = len(await repo.accounts())
-    for framework in frameworks.values():
-        framework.total_controls = len(framework.controls)
-        framework.passed_controls = sum(control["status"] == "PASS" for control in framework.controls)
-        framework.active_accounts = account_count
-        framework.score = round(100 * framework.passed_controls / framework.total_controls) if framework.total_controls > 0 else 100
-    return list(frameworks.values())
+    return build_frameworks(list(records), account_count)
 
 @app.get("/api/v1/reports/summary")
 async def report_summary(user: User = Depends(current_user), repo: TenantRepository = Depends(get_tenant_repo), session: AsyncSession = Depends(get_session)) -> Response:
@@ -220,4 +189,8 @@ class SecretScanRequest(BaseModel):
 async def scan_secrets_endpoint(payload: SecretScanRequest, user: User = Depends(current_user), repo: TenantRepository = Depends(get_tenant_repo)) -> list[dict]:
     if payload.content:
         return scan_content(payload.content, filename="manual_input.txt")
-    return scan_local_path(payload.target_path)
+    root = Path(settings.secret_scan_root).resolve()
+    target = (root / payload.target_path).resolve() if not Path(payload.target_path).is_absolute() else Path(payload.target_path).resolve()
+    if target != root and root not in target.parents:
+        raise HTTPException(status_code=403, detail="The scan path must be inside the configured scan root")
+    return scan_local_path(str(target))

@@ -71,7 +71,7 @@ export const FindingsExplorer: React.FC = () => {
   return (
     <div className="relative h-[calc(100vh-7rem)] flex flex-col -m-6 md:-m-8 lg:-m-10">
       {/* Header & Filter Controls Toolbar */}
-      <div className="px-8 py-5 border-b border-outline-variant/60 bg-surface-container-lowest/60 backdrop-blur-md shrink-0">
+      <div className="px-6 sm:px-8 py-5 border-b border-outline-variant bg-surface shrink-0 shadow-2xs">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
           <div>
             <h1 className="text-2xl font-headline font-bold text-on-surface tracking-tight">
@@ -102,7 +102,7 @@ export const FindingsExplorer: React.FC = () => {
                 link.click();
                 document.body.removeChild(link);
               }}
-              className="px-3.5 py-2 bg-surface-container text-on-surface text-xs font-label font-medium rounded-lg border border-outline-variant/60 hover:bg-surface-container-high transition-colors flex items-center gap-2"
+              className="px-3.5 py-2 bg-surface hover:bg-slate-100 text-on-surface text-xs font-label font-medium rounded-lg border border-outline-variant shadow-xs transition-colors flex items-center gap-2"
             >
               <Download className="w-3.5 h-3.5 text-primary" />
               <span>Export CSV</span>
@@ -119,7 +119,7 @@ export const FindingsExplorer: React.FC = () => {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search findings, rules, ARNs..."
-              className="w-full pl-9 pr-4 py-1.5 bg-surface-container border border-outline-variant/60 rounded-lg text-xs text-on-surface focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary placeholder-on-surface-variant/40"
+              className="w-full pl-9 pr-4 py-2 bg-surface border border-outline-variant rounded-lg text-xs text-on-surface focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary placeholder-on-surface-variant/50 shadow-xs"
             />
           </div>
 
@@ -127,7 +127,7 @@ export const FindingsExplorer: React.FC = () => {
           <select
             value={selectedSeverity}
             onChange={(e) => setSelectedSeverity(e.target.value)}
-            className="px-3 py-1.5 bg-surface-container border border-outline-variant/60 rounded-lg text-xs text-on-surface focus:outline-none focus:border-primary"
+            className="px-3 py-2 bg-surface border border-outline-variant rounded-lg text-xs text-on-surface focus:outline-none focus:border-primary shadow-xs"
           >
             <option value="ALL">All Severities</option>
             <option value="CRITICAL">Critical</option>
@@ -140,7 +140,7 @@ export const FindingsExplorer: React.FC = () => {
           <select
             value={selectedService}
             onChange={(e) => setSelectedService(e.target.value)}
-            className="px-3 py-1.5 bg-surface-container border border-outline-variant/60 rounded-lg text-xs text-on-surface focus:outline-none focus:border-primary"
+            className="px-3 py-2 bg-surface border border-outline-variant rounded-lg text-xs text-on-surface focus:outline-none focus:border-primary shadow-xs"
           >
             <option value="ALL">All Services</option>
             <option value="S3">S3</option>
@@ -154,7 +154,7 @@ export const FindingsExplorer: React.FC = () => {
           <select
             value={selectedStatus}
             onChange={(e) => setSelectedStatus(e.target.value)}
-            className="px-3 py-1.5 bg-surface-container border border-outline-variant/60 rounded-lg text-xs text-on-surface focus:outline-none focus:border-primary"
+            className="px-3 py-2 bg-surface border border-outline-variant rounded-lg text-xs text-on-surface focus:outline-none focus:border-primary shadow-xs"
           >
             <option value="ALL">All Statuses</option>
             <option value="OPEN">Open</option>
@@ -178,9 +178,9 @@ export const FindingsExplorer: React.FC = () => {
       </div>
 
       {/* Main Data Table */}
-      <div className="flex-1 overflow-auto bg-surface-container-lowest">
+      <div className="flex-1 overflow-auto bg-surface">
         <table className="w-full text-left text-xs whitespace-nowrap">
-          <thead className="bg-surface-container sticky top-0 z-10 text-on-surface-variant font-medium font-label border-b border-outline-variant/60">
+          <thead className="bg-slate-50 sticky top-0 z-10 text-on-surface-variant font-semibold font-label text-xs uppercase tracking-wider border-b border-outline-variant">
             <tr>
               <th className="py-3 px-6">Severity</th>
               <th className="py-3 px-4">Rule ID / Title</th>
@@ -191,7 +191,7 @@ export const FindingsExplorer: React.FC = () => {
               <th className="py-3 px-6 text-right">Remediation</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-outline-variant/30">
+          <tbody className="divide-y divide-outline-variant/60">
             {isLoading ? (
               <tr>
                 <td colSpan={7} className="py-16 text-center text-on-surface-variant flex justify-center">
@@ -209,8 +209,8 @@ export const FindingsExplorer: React.FC = () => {
                 <tr
                   key={finding.id}
                   onClick={() => selectFinding(finding)}
-                  className={`hover:bg-surface-container-high/60 transition-colors cursor-pointer ${
-                    selectedFinding?.id === finding.id ? 'bg-surface-container' : ''
+                  className={`hover:bg-blue-50/50 transition-colors cursor-pointer ${
+                    selectedFinding?.id === finding.id ? 'bg-blue-50/80' : ''
                   }`}
                 >
                   <td className="py-3.5 px-6">
@@ -235,7 +235,7 @@ export const FindingsExplorer: React.FC = () => {
                     </p>
                   </td>
                   <td className="py-3.5 px-4">
-                    <span className="px-2 py-0.5 bg-surface-container-high rounded text-xs font-mono border border-outline-variant/50">
+                    <span className="px-2 py-0.5 bg-slate-100 rounded text-xs font-mono border border-outline-variant text-on-surface font-medium">
                       {finding.service_name}
                     </span>
                   </td>
@@ -289,7 +289,7 @@ export const FindingsExplorer: React.FC = () => {
       {selectedFinding && (
         <div className="fixed inset-y-0 right-0 z-40 w-full sm:max-w-2xl bg-surface border-l border-outline-variant shadow-2xl flex flex-col">
           {/* Drawer Header */}
-          <div className="p-6 border-b border-outline-variant/60 flex items-start justify-between bg-surface-container-low/50">
+          <div className="p-6 border-b border-outline-variant flex items-start justify-between bg-slate-50/80">
             <div className="pr-4">
               <div className="flex items-center gap-2 mb-2">
                 <span
@@ -311,7 +311,7 @@ export const FindingsExplorer: React.FC = () => {
             </div>
             <button
               onClick={() => selectFinding(null)}
-              className="text-on-surface-variant hover:text-on-surface p-1.5 rounded-lg hover:bg-surface-container-high transition-colors"
+              className="text-on-surface-variant hover:text-on-surface p-1.5 rounded-lg hover:bg-slate-100 transition-colors"
             >
               <X className="w-5 h-5" />
             </button>
@@ -320,8 +320,8 @@ export const FindingsExplorer: React.FC = () => {
           {/* Drawer Body */}
           <div className="flex-1 overflow-y-auto p-6 space-y-6">
             {/* Impact Box */}
-            <div className="bg-surface-container-high/40 border border-outline-variant/50 rounded-xl p-4">
-              <h4 className="text-xs font-label uppercase text-on-surface-variant tracking-wider font-semibold mb-1">
+            <div className="bg-blue-50/60 border border-blue-100 rounded-xl p-4">
+              <h4 className="text-xs font-label uppercase text-primary tracking-wider font-semibold mb-1">
                 Security Impact & Exposure
               </h4>
               <p className="text-sm text-on-surface leading-relaxed">
@@ -349,7 +349,7 @@ export const FindingsExplorer: React.FC = () => {
                   <span>Copy ARN</span>
                 </button>
               </div>
-              <div className="bg-surface-container-lowest border border-outline-variant/60 rounded-lg p-3 font-mono text-xs text-on-surface break-all select-all">
+              <div className="bg-slate-50 border border-outline-variant rounded-lg p-3 font-mono text-xs text-slate-800 break-all select-all">
                 {selectedFinding.resource_arn}
               </div>
             </div>
@@ -363,7 +363,7 @@ export const FindingsExplorer: React.FC = () => {
                 {selectedFinding.compliance_controls.map((ctrl) => (
                   <span
                     key={ctrl}
-                    className="inline-flex items-center gap-1.5 px-3 py-1 rounded-md bg-secondary-container/25 text-on-secondary-container border border-secondary/30 text-xs font-mono font-medium"
+                    className="inline-flex items-center gap-1.5 px-3 py-1 rounded-md bg-blue-50 text-blue-800 border border-blue-200 text-xs font-mono font-medium"
                   >
                     <ShieldAlert className="w-3.5 h-3.5 text-primary" />
                     {ctrl}
@@ -378,12 +378,12 @@ export const FindingsExplorer: React.FC = () => {
                 <span className="text-xs font-label uppercase text-on-surface-variant tracking-wider font-semibold">
                   Remediation Code Fixes
                 </span>
-                <div className="flex bg-surface-container rounded-lg p-0.5 border border-outline-variant/60">
+                <div className="flex bg-slate-100 rounded-lg p-0.5 border border-outline-variant">
                   <button
                     onClick={() => setActiveRemediationTab('terraform')}
                     className={`flex items-center gap-1.5 px-3 py-1 text-xs font-label font-medium rounded-md transition-all ${
                       activeRemediationTab === 'terraform'
-                        ? 'bg-primary text-on-primary shadow-sm font-semibold'
+                        ? 'bg-primary text-on-primary shadow-xs font-semibold'
                         : 'text-on-surface-variant hover:text-on-surface'
                     }`}
                   >
@@ -394,7 +394,7 @@ export const FindingsExplorer: React.FC = () => {
                     onClick={() => setActiveRemediationTab('cli')}
                     className={`flex items-center gap-1.5 px-3 py-1 text-xs font-label font-medium rounded-md transition-all ${
                       activeRemediationTab === 'cli'
-                        ? 'bg-primary text-on-primary shadow-sm font-semibold'
+                        ? 'bg-primary text-on-primary shadow-xs font-semibold'
                         : 'text-on-surface-variant hover:text-on-surface'
                     }`}
                   >
@@ -405,10 +405,10 @@ export const FindingsExplorer: React.FC = () => {
               </div>
 
               {/* Code Viewer Container */}
-              <div className="relative bg-surface-container-lowest border border-outline-variant/60 rounded-xl overflow-hidden shadow-inner">
-                <div className="flex justify-between items-center px-4 py-2 bg-surface-container-low border-b border-outline-variant/40 text-xs font-mono text-on-surface-variant">
-                  <span>
-                    {activeRemediationTab === 'terraform' ? 'main.tf' : 'bash snippet'}
+              <div className="relative bg-slate-900 border border-slate-700/80 rounded-xl overflow-hidden shadow-sm">
+                <div className="flex justify-between items-center px-4 py-2.5 bg-slate-800 border-b border-slate-700 text-xs font-mono text-slate-300">
+                  <span className="font-semibold text-slate-200">
+                    {activeRemediationTab === 'terraform' ? 'main.tf' : 'remediate.sh'}
                   </span>
                   <button
                     onClick={() =>
@@ -419,12 +419,12 @@ export const FindingsExplorer: React.FC = () => {
                         activeRemediationTab
                       )
                     }
-                    className="flex items-center gap-1 text-primary hover:text-primary-fixed-dim"
+                    className="flex items-center gap-1.5 text-blue-400 hover:text-blue-300 font-sans text-xs transition-colors"
                   >
                     {copiedTab === activeRemediationTab ? (
                       <>
-                        <Check className="w-3.5 h-3.5 text-passed" />
-                        <span className="text-passed">Copied!</span>
+                        <Check className="w-3.5 h-3.5 text-emerald-400" />
+                        <span className="text-emerald-400 font-medium">Copied!</span>
                       </>
                     ) : (
                       <>
@@ -434,7 +434,7 @@ export const FindingsExplorer: React.FC = () => {
                     )}
                   </button>
                 </div>
-                <pre className="p-4 text-xs font-mono text-on-surface overflow-x-auto leading-relaxed">
+                <pre className="p-4 text-xs font-mono text-slate-100 overflow-x-auto leading-relaxed selection:bg-blue-600 selection:text-white">
                   <code>
                     {activeRemediationTab === 'terraform'
                       ? selectedFinding.remediation_json.terraform
@@ -446,16 +446,16 @@ export const FindingsExplorer: React.FC = () => {
           </div>
 
           {/* Drawer Actions Footer */}
-          <div className="p-5 border-t border-outline-variant/60 bg-surface-container-low flex items-center justify-between gap-3">
+          <div className="p-5 border-t border-outline-variant bg-slate-50 flex items-center justify-between gap-3">
             <button
               onClick={() => suppressFinding(selectedFinding.id)}
-              className="px-4 py-2 bg-surface-container hover:bg-surface-container-high border border-outline-variant text-on-surface-variant hover:text-on-surface rounded-lg text-xs font-label font-medium transition-colors"
+              className="px-4 py-2 bg-surface hover:bg-slate-100 border border-outline-variant text-on-surface-variant hover:text-on-surface rounded-lg text-xs font-label font-medium shadow-xs transition-colors"
             >
               Mark as Suppressed
             </button>
             <button
               onClick={() => resolveFinding(selectedFinding.id)}
-              className="px-4 py-2 bg-passed/15 hover:bg-passed/25 border border-passed/30 text-passed rounded-lg text-xs font-label font-semibold transition-colors"
+              className="px-4 py-2 bg-passed/15 hover:bg-passed/25 border border-passed/30 text-passed rounded-lg text-xs font-label font-semibold shadow-xs transition-colors"
             >
               Mark as Resolved
             </button>

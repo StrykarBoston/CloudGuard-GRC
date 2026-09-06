@@ -227,18 +227,18 @@ def local_rule_results(account: CloudAccount) -> List[Dict[str, Any]]:
     return evaluate_account_rules(account)
 
 
-async def run_scan(scan_id: str) -> None:
+async def run_scan(scan_id: str, tenant_id: str) -> None:
     """Asynchronous scan runner with tenant RLS isolation and rule execution."""
     async with SessionLocal() as session:
-        scan = await session.get(Scan, scan_id)
-        if scan is None:
-            return
-
         # Set tenant RLS context on session for Postgres row isolation
         await session.execute(
             text("SELECT set_config('app.current_tenant_id', :tenant_id, true)"),
-            {"tenant_id": scan.tenant_id}
+            {"tenant_id": tenant_id}
         )
+
+        scan = await session.get(Scan, scan_id)
+        if scan is None or scan.tenant_id != tenant_id:
+            return
 
         account = await session.get(CloudAccount, scan.cloud_account_id)
         if account is None:

@@ -6,63 +6,63 @@ export default {
   theme: {
     extend: {
       colors: {
-        // Core background & canvas
-        canvas: '#090d16',
-        background: '#090d16',
+        // Core background & canvas (Crisp Light Slate / White)
+        canvas: '#f8fafc',
+        background: '#f8fafc',
 
-        // Surfaces
-        surface: '#0e1417',
-        'surface-container-lowest': '#080f12',
-        'surface-container-low': '#161d1f',
-        'surface-container': '#1a2123',
-        'surface-container-high': '#242b2e',
-        'surface-container-highest': '#2f3639',
-        'surface-bright': '#333a3d',
-        'surface-variant': '#2f3639',
+        // Surfaces (Crisp White & Layered Slate containers)
+        surface: '#ffffff',
+        'surface-container-lowest': '#ffffff',
+        'surface-container-low': '#f1f5f9',
+        'surface-container': '#f8fafc',
+        'surface-container-high': '#e2e8f0',
+        'surface-container-highest': '#cbd5e1',
+        'surface-bright': '#ffffff',
+        'surface-variant': '#f1f5f9',
 
-        // Typography colors
-        'on-surface': '#dde3e7',
-        'on-surface-variant': '#bbc9cf',
-        'on-background': '#dde3e7',
+        // Typography colors (High readability slate-900 & slate-600)
+        'on-surface': '#0f172a',
+        'on-surface-variant': '#475569',
+        'on-background': '#0f172a',
 
         // Borders & Outlines
-        outline: '#859398',
-        'outline-variant': '#262626',
-        'outline-muted': '#3c494e',
+        outline: '#94a3b8',
+        'outline-variant': '#e2e8f0',
+        'outline-muted': '#cbd5e1',
 
-        // Primary Brand (Cyber Blue / Cyan)
-        brand: '#00D4FF',
-        primary: '#00D4FF',
-        'primary-container': '#0cd4ff',
-        'on-primary': '#003542',
-        'on-primary-container': '#00586b',
-        'primary-fixed': '#b4ebff',
-        'primary-fixed-dim': '#3ed7ff',
+        // Primary Brand (Enterprise Vibrant Royal Blue)
+        brand: '#2563eb',
+        primary: '#2563eb',
+        'primary-container': '#1d4ed8',
+        'on-primary': '#ffffff',
+        'on-primary-container': '#ffffff',
+        'primary-fixed': '#dbeafe',
+        'primary-fixed-dim': '#bfdbfe',
 
-        // Secondary (Muted Cyan / Blue)
-        secondary: '#9ccee1',
-        'secondary-container': '#154d5d',
-        'on-secondary': '#003543',
-        'on-secondary-container': '#8abdcf',
-        'secondary-fixed': '#b7eafe',
-        'secondary-fixed-dim': '#9ccee1',
+        // Secondary (Sky / Ice Blue accents)
+        secondary: '#0284c7',
+        'secondary-container': '#eff6ff',
+        'on-secondary': '#ffffff',
+        'on-secondary-container': '#1d4ed8',
+        'secondary-fixed': '#dbeafe',
+        'secondary-fixed-dim': '#93c5fd',
 
-        // Severities & Statuses (aligned with CSPM & Stitch specifications)
-        critical: '#ef4444',
-        error: '#ef4444',
-        'error-container': '#93000a',
+        // Severities & Statuses (Tailored for high contrast on light backgrounds)
+        critical: '#dc2626',
+        error: '#dc2626',
+        'error-container': '#fee2e2',
         'on-error': '#ffffff',
-        'on-error-container': '#ffdad6',
+        'on-error-container': '#991b1b',
 
-        high: '#f97316',
-        'tertiary-container': '#feb528',
-        'on-tertiary-container': '#6c4900',
+        high: '#ea580c',
+        'tertiary-container': '#ffedd5',
+        'on-tertiary-container': '#9a3412',
 
-        medium: '#eab308',
-        low: '#3b82f6',
+        medium: '#d97706',
+        low: '#2563eb',
 
-        passed: '#22c55e',
-        success: '#22c55e',
+        passed: '#16a34a',
+        success: '#16a34a',
       },
       fontFamily: {
         headline: ['"Space Grotesk"', 'sans-serif'],
@@ -78,6 +78,11 @@ export default {
         xl: '0.75rem',
         '2xl': '1rem',
       },
+      boxShadow: {
+        subtle: '0 1px 3px 0 rgb(0 0 0 / 0.05), 0 1px 2px -1px rgb(0 0 0 / 0.05)',
+        card: '0 4px 6px -1px rgb(0 0 0 / 0.05), 0 2px 4px -2px rgb(0 0 0 / 0.05)',
+        glow: '0 0 15px -3px rgba(37, 99, 235, 0.25)',
+      }
     },
   },
   plugins: [],

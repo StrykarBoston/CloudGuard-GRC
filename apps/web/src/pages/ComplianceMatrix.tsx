@@ -21,6 +21,16 @@ export const ComplianceMatrix: React.FC = () => {
   const activeFramework =
     frameworks.find((f) => f.id === selectedFrameworkId) || frameworks[0];
 
+  const normalizedSearch = searchQuery.trim().toLowerCase();
+  const visibleFrameworks = frameworks.filter((framework) => {
+    if (!normalizedSearch) return true;
+    return framework.name.toLowerCase().includes(normalizedSearch)
+      || framework.version.toLowerCase().includes(normalizedSearch)
+      || framework.controls.some((control) =>
+        `${control.control_id} ${control.title} ${control.description}`.toLowerCase().includes(normalizedSearch)
+      );
+  });
+
   if (isLoading) {
     return <div className="flex justify-center items-center h-64"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>;
   }
@@ -63,6 +73,9 @@ export const ComplianceMatrix: React.FC = () => {
               Continuous audit evidence mapping across {frameworks.length} active statutory & industry benchmarks.
             </span>
           </p>
+          <p className="text-xs text-medium mt-3 max-w-3xl">
+            Scores are technical posture scores based on available scan evidence. They are not official compliance certifications or audit opinions.
+          </p>
         </div>
 
         {/* Action Controls */}
@@ -74,14 +87,14 @@ export const ComplianceMatrix: React.FC = () => {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search frameworks & controls..."
-              className="w-full pl-9 pr-3 py-2 bg-surface-container border border-outline-variant/60 rounded-lg text-xs text-on-surface focus:outline-none focus:border-primary placeholder-on-surface-variant/40"
+              className="w-full pl-9 pr-3 py-2 bg-surface border border-outline-variant rounded-lg text-xs text-on-surface focus:outline-none focus:border-primary placeholder-on-surface-variant/40 shadow-xs"
             />
           </div>
 
           <button
             onClick={handleExportPDF}
             disabled={exporting}
-            className="flex items-center gap-2 px-4 py-2 bg-primary text-on-primary font-label font-semibold rounded-lg text-xs hover:bg-primary-container transition-colors shadow-[0_0_12px_rgba(0,212,255,0.2)]"
+            className="flex items-center gap-2 px-4 py-2 bg-primary text-on-primary font-label font-semibold rounded-lg text-xs hover:bg-primary-container transition-colors shadow-sm shadow-blue-500/20"
           >
             <Download className="w-3.5 h-3.5" />
             <span>{exporting ? 'Generating PDF...' : 'Export Audit PDF'}</span>
@@ -91,16 +104,16 @@ export const ComplianceMatrix: React.FC = () => {
 
       {/* Bento Grid: Framework Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {frameworks.map((fw) => {
+        {visibleFrameworks.map((fw) => {
           const isSelected = fw.id === selectedFrameworkId;
           return (
             <div
               key={fw.id}
               onClick={() => setSelectedFrameworkId(fw.id)}
-              className={`bg-surface-container/60 border rounded-2xl p-5 cursor-pointer transition-all duration-200 relative overflow-hidden shadow-lg flex flex-col justify-between ${
+              className={`bg-surface border rounded-2xl p-5 cursor-pointer transition-all duration-200 relative overflow-hidden shadow-xs hover:shadow-md flex flex-col justify-between ${
                 isSelected
-                  ? 'border-primary shadow-[0_0_15px_rgba(0,212,255,0.15)] bg-surface-container-high/60 scale-[1.01]'
-                  : 'border-outline-variant/60 hover:border-primary/40'
+                  ? 'border-primary ring-2 ring-primary/20 bg-blue-50/25 shadow-md scale-[1.01]'
+                  : 'border-outline-variant hover:border-primary/50'
               }`}
             >
               {/* Top accent glow line */}
@@ -115,7 +128,7 @@ export const ComplianceMatrix: React.FC = () => {
                   <div className="w-10 h-10 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center text-primary">
                     <Shield className="w-5 h-5" />
                   </div>
-                  <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-surface-container text-on-surface-variant border border-outline-variant/40">
+                  <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-slate-100 text-on-surface-variant border border-outline-variant">
                     {fw.version}
                   </span>
                 </div>
@@ -129,7 +142,7 @@ export const ComplianceMatrix: React.FC = () => {
               </div>
 
               {/* Progress Metric */}
-              <div className="mt-5 pt-4 border-t border-outline-variant/40 flex items-center justify-between">
+              <div className="mt-5 pt-4 border-t border-outline-variant/60 flex items-center justify-between">
                 <div>
                   <span className="text-2xl font-headline font-bold text-primary">
                     {fw.score}%
@@ -139,13 +152,13 @@ export const ComplianceMatrix: React.FC = () => {
                   </p>
                 </div>
                 <span
-                  className={`text-xs px-2 py-0.5 rounded-full font-label font-medium ${
+                  className={`text-xs px-2.5 py-0.5 rounded-full font-label font-medium ${
                     fw.score >= 80
                       ? 'bg-passed/10 text-passed border border-passed/30'
                       : 'bg-high/10 text-high border border-high/30'
                   }`}
                 >
-                  {fw.score >= 80 ? 'Compliant' : 'Review Required'}
+                  {fw.score >= 80 ? 'Strong Posture' : 'Review Required'}
                 </span>
               </div>
             </div>
@@ -155,7 +168,7 @@ export const ComplianceMatrix: React.FC = () => {
 
       {/* Control Level Breakdown Table */}
       {activeFramework && (
-        <div className="bg-surface-container/50 backdrop-blur-sm border border-outline-variant/60 rounded-2xl p-6 shadow-lg">
+        <div className="bg-surface border border-outline-variant rounded-2xl p-6 shadow-xs">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
             <div>
               <h2 className="text-xl font-headline font-bold text-on-surface">
@@ -172,7 +185,7 @@ export const ComplianceMatrix: React.FC = () => {
 
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs whitespace-nowrap">
-              <thead className="bg-surface-container-low text-on-surface-variant font-medium font-label border-b border-outline-variant/50">
+              <thead className="bg-slate-50 text-on-surface-variant font-semibold font-label text-xs uppercase tracking-wider border-b border-outline-variant">
                 <tr>
                   <th className="py-3 px-4">Status</th>
                   <th className="py-3 px-4">Control ID</th>
@@ -181,13 +194,17 @@ export const ComplianceMatrix: React.FC = () => {
                   <th className="py-3 px-4 text-right">Evidence State</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-outline-variant/30">
+              <tbody className="divide-y divide-outline-variant/60">
                 {activeFramework.controls.map((ctrl) => (
-                  <tr key={ctrl.id} className="hover:bg-surface-container-high/40 transition-colors">
+                  <tr key={ctrl.id} className="hover:bg-blue-50/40 transition-colors">
                     <td className="py-3.5 px-4">
                       {ctrl.status === 'PASS' ? (
                         <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-passed/10 text-passed border border-passed/30 font-semibold font-label text-[11px]">
                           <CheckCircle2 className="w-3.5 h-3.5" /> Pass
+                        </span>
+                      ) : ctrl.status === 'NEEDS_REVIEW' ? (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-medium/10 text-medium border border-medium/30 font-semibold font-label text-[11px]">
+                          Review
                         </span>
                       ) : (
                         <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-critical/10 text-critical border border-critical/30 font-semibold font-label text-[11px]">
@@ -209,7 +226,7 @@ export const ComplianceMatrix: React.FC = () => {
                         {ctrl.mapped_rules.map((r) => (
                           <span
                             key={r}
-                            className="px-2 py-0.5 bg-surface-container rounded text-[11px] font-mono border border-outline-variant/40 text-primary"
+                            className="px-2 py-0.5 bg-blue-50 rounded text-[11px] font-mono border border-blue-200 text-primary font-semibold"
                           >
                             {r}
                           </span>
@@ -218,9 +235,11 @@ export const ComplianceMatrix: React.FC = () => {
                     </td>
                     <td className="py-3.5 px-4 text-right font-mono text-[11px] text-on-surface-variant">
                       {ctrl.status === 'PASS' ? (
-                        <span className="text-passed">Verified Clean</span>
+                        <span className="text-passed font-medium">Verified Clean</span>
+                      ) : ctrl.status === 'NEEDS_REVIEW' ? (
+                        <span className="text-medium font-medium">Evidence Required</span>
                       ) : (
-                        <span className="text-critical">Remediation Required</span>
+                        <span className="text-critical font-medium">Remediation Required</span>
                       )}
                     </td>
                   </tr>

@@ -1,6 +1,31 @@
 import axios from 'axios';
 import type { CloudAccount, Finding, GRCFramework, ThreatScoreSummary, User } from '../types';
 
+const refreshClient = axios.create({
+  baseURL: import.meta.env.VITE_API_URL || '/api/v1',
+  headers: { 'Content-Type': 'application/json' },
+});
+
+export const getAccessToken = () => localStorage.getItem('access_token') || sessionStorage.getItem('access_token');
+
+export const setTokens = (tokens: Tokens, remember: boolean) => {
+  const storage = remember ? localStorage : sessionStorage;
+  const otherStorage = remember ? sessionStorage : localStorage;
+  otherStorage.removeItem('access_token');
+  otherStorage.removeItem('refresh_token');
+  storage.setItem('access_token', tokens.access_token);
+  storage.setItem('refresh_token', tokens.refresh_token);
+};
+
+export const clearTokens = () => {
+  localStorage.removeItem('access_token');
+  localStorage.removeItem('refresh_token');
+  sessionStorage.removeItem('access_token');
+  sessionStorage.removeItem('refresh_token');
+};
+
+let refreshRequest: Promise<Tokens> | null = null;
+
 export const apiClient = axios.create({
   baseURL: import.meta.env.VITE_API_URL || '/api/v1',
   headers: {
@@ -9,7 +34,7 @@ export const apiClient = axios.create({
 });
 
 apiClient.interceptors.request.use((config) => {
-  const token = localStorage.getItem('access_token');
+  const token = getAccessToken();
   if (token && config.headers) {
     config.headers.Authorization = `Bearer ${token}`;
   }
@@ -19,7 +44,25 @@ apiClient.interceptors.request.use((config) => {
 apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
-    // Graceful error logging
+    const config = error.config as (typeof error.config & { _retry?: boolean }) | undefined;
+    if (error.response?.status === 401 && config && !config._retry && !config.url?.includes('/auth/')) {
+      config._retry = true;
+      const refreshToken = localStorage.getItem('refresh_token') || sessionStorage.getItem('refresh_token');
+      if (refreshToken) {
+        refreshRequest ??= refreshClient.post<Tokens>('/auth/refresh', { refresh_token: refreshToken }).then((response) => {
+          const remember = Boolean(localStorage.getItem('refresh_token'));
+          setTokens(response.data, remember);
+          return response.data;
+        }).finally(() => { refreshRequest = null; });
+        return refreshRequest.then((tokens) => {
+          config.headers.Authorization = `Bearer ${tokens.access_token}`;
+          return apiClient(config);
+        }).catch(() => {
+          clearTokens();
+          return Promise.reject(error);
+        });
+      }
+    }
     console.error('API Error Response:', error.response?.data || error.message);
     return Promise.reject(error);
   }

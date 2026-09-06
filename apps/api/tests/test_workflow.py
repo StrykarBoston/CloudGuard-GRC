@@ -7,6 +7,8 @@ from app.main import app
 from app.db import engine
 from app.models import Base
 
+pytestmark = pytest.mark.usefixtures("clean_database_fixture")
+
 
 @pytest.mark.asyncio
 async def test_e2e_audit_workflow():
@@ -63,5 +65,8 @@ async def test_e2e_audit_workflow():
         res = await client.get("/api/v1/compliance", headers=headers)
         assert res.status_code == 200
         comp = res.json()
-        assert len(comp) > 0
+        assert len(comp) == 12
+        assert all(framework["score_type"] == "TECHNICAL_POSTURE" for framework in comp)
+        assert all(framework["assurance_status"] == "NOT_A_CERTIFICATION" for framework in comp)
+        assert any(control["status"] == "NEEDS_REVIEW" for framework in comp for control in framework["controls"])
         assert any(c["status"] == "FAIL" for framework in comp for c in framework["controls"])

@@ -15,7 +15,7 @@ export const Login: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true); setError(null);
-    try { await login(email, password); navigate('/dashboard'); }
+    try { await login(email, password, rememberMe); navigate('/dashboard'); }
     catch { setError('Sign-in failed. Check your email and password.'); }
     finally { setLoading(false); }
   };
@@ -24,7 +24,7 @@ export const Login: React.FC = () => {
     <div>
       {/* Brand Icon Header */}
       <div className="flex justify-center mb-6">
-        <div className="w-16 h-16 rounded-xl bg-primary/10 border border-primary/30 flex items-center justify-center text-primary shadow-[0_0_20px_rgba(0,212,255,0.25)]">
+        <div className="w-16 h-16 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center text-primary shadow-md shadow-blue-500/10">
           <Shield className="w-8 h-8 fill-primary/20 text-primary" />
         </div>
       </div>
@@ -112,7 +112,7 @@ export const Login: React.FC = () => {
         <button
           type="submit"
           disabled={loading}
-          className="w-full text-surface bg-primary hover:bg-primary-container focus:ring-4 focus:outline-none focus:ring-primary/30 font-semibold rounded-lg text-sm px-5 py-3 text-center font-headline transition-all active:scale-[0.98] shadow-[0_0_15px_rgba(0,212,255,0.3)] flex items-center justify-center gap-2"
+          className="w-full text-on-primary bg-primary hover:bg-primary-container focus:ring-4 focus:outline-none focus:ring-primary/30 font-semibold rounded-lg text-sm px-5 py-3 text-center font-headline transition-all active:scale-[0.98] shadow-md shadow-blue-500/20 flex items-center justify-center gap-2"
         >
           {loading ? (
             <Loader2 className="w-4 h-4 animate-spin" />

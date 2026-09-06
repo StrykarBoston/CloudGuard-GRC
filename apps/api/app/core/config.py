@@ -17,6 +17,7 @@ class Settings(BaseSettings):
     cors_origins: str = "http://localhost:5173,http://127.0.0.1:5173"
     sql_echo: bool = False
     local_aws_simulation: bool = True
+    secret_scan_root: str = "."
 
     @field_validator("jwt_secret")
     @classmethod

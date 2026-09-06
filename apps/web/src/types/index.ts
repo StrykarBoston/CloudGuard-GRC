@@ -52,6 +52,8 @@ export interface GRCFramework {
   version: string;
   description: string;
   score: number;
+  score_type: 'TECHNICAL_POSTURE';
+  assurance_status: 'NOT_A_CERTIFICATION';
   active_accounts: number;
   passed_controls: number;
   total_controls: number;

@@ -7,6 +7,9 @@ export default defineConfig(({ mode }) => {
   return {
   plugins: [react()],
   server: {
+    watch: {
+      usePolling: true,
+    },
     proxy: {
       '/api': {
         target: env.VITE_API_PROXY_TARGET || 'http://localhost:8000',

@@ -1,4 +1,5 @@
 from datetime import datetime, timezone
+from html import escape
 from typing import Any, Dict, List
 
 
@@ -29,11 +30,11 @@ def generate_executive_html_report(
     for acc in accounts:
         accounts_rows += f"""
         <tr>
-            <td style="padding: 10px 12px; border-bottom: 1px solid #e2e8f0;">{getattr(acc, 'provider', 'AWS')}</td>
-            <td style="padding: 10px 12px; border-bottom: 1px solid #e2e8f0; font-weight: 600;">{getattr(acc, 'account_alias', '')}</td>
-            <td style="padding: 10px 12px; border-bottom: 1px solid #e2e8f0; font-family: monospace;">{getattr(acc, 'account_number', '')}</td>
-            <td style="padding: 10px 12px; border-bottom: 1px solid #e2e8f0; font-family: monospace; font-size: 11px;">{getattr(acc, 'role_arn', '')}</td>
-            <td style="padding: 10px 12px; border-bottom: 1px solid #e2e8f0; color: #10b981; font-weight: bold;">{getattr(acc, 'connection_status', 'ACTIVE')}</td>
+            <td style="padding: 10px 12px; border-bottom: 1px solid #e2e8f0;">{escape(str(getattr(acc, 'provider', 'AWS')))}</td>
+            <td style="padding: 10px 12px; border-bottom: 1px solid #e2e8f0; font-weight: 600;">{escape(str(getattr(acc, 'account_alias', '')))}</td>
+            <td style="padding: 10px 12px; border-bottom: 1px solid #e2e8f0; font-family: monospace;">{escape(str(getattr(acc, 'account_number', '')))}</td>
+            <td style="padding: 10px 12px; border-bottom: 1px solid #e2e8f0; font-family: monospace; font-size: 11px;">{escape(str(getattr(acc, 'role_arn', '')))}</td>
+            <td style="padding: 10px 12px; border-bottom: 1px solid #e2e8f0; color: #10b981; font-weight: bold;">{escape(str(getattr(acc, 'connection_status', 'ACTIVE')))}</td>
         </tr>
         """
 
@@ -49,8 +50,8 @@ def generate_executive_html_report(
 
         framework_cards += f"""
         <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; flex: 1; min-width: 200px;">
-            <div style="font-size: 12px; color: #64748b; margin-bottom: 4px;">{version}</div>
-            <div style="font-weight: 700; font-size: 16px; margin-bottom: 8px; color: #0f172a;">{name}</div>
+            <div style="font-size: 12px; color: #64748b; margin-bottom: 4px;">{escape(str(version))}</div>
+            <div style="font-weight: 700; font-size: 16px; margin-bottom: 8px; color: #0f172a;">{escape(str(name))}</div>
             <div style="display: flex; justify-content: space-between; align-items: baseline;">
                 <span style="font-size: 28px; font-weight: 800; color: {status_badge_color};">{score}%</span>
                 <span style="font-size: 12px; color: #64748b;">{passed}/{total} Passed</span>
@@ -76,12 +77,12 @@ def generate_executive_html_report(
                 <span style="background: {sev_color}; color: white; padding: 3px 8px; border-radius: 4px; font-weight: bold; font-size: 11px;">{sev}</span>
             </td>
             <td style="padding: 12px; vertical-align: top;">
-                <div style="font-weight: 600; color: #0f172a; margin-bottom: 4px;">{title}</div>
-                <div style="font-size: 11px; font-family: monospace; color: #475569; word-break: break-all;">{arn}</div>
-                <div style="font-size: 12px; color: #64748b; margin-top: 6px;"><strong>Remediation:</strong> {explanation}</div>
+                <div style="font-weight: 600; color: #0f172a; margin-bottom: 4px;">{escape(str(title))}</div>
+                <div style="font-size: 11px; font-family: monospace; color: #475569; word-break: break-all;">{escape(str(arn))}</div>
+                <div style="font-size: 12px; color: #64748b; margin-top: 6px;"><strong>Remediation:</strong> {escape(str(explanation))}</div>
             </td>
             <td style="padding: 12px; vertical-align: top; font-size: 11px; font-family: monospace; color: #0284c7;">
-                {controls}
+                {escape(str(controls))}
             </td>
             <td style="padding: 12px; vertical-align: top; font-size: 12px; font-weight: bold; color: #dc2626;">
                 OPEN
@@ -193,7 +194,7 @@ def generate_executive_html_report(
             <div class="brand-sub">Executive Cloud Security & Compliance Audit</div>
         </div>
         <div class="meta-box">
-            <div><strong>Organization:</strong> {organization_name}</div>
+            <div><strong>Organization:</strong> {escape(str(organization_name))}</div>
             <div><strong>Audit Date:</strong> {date_str}</div>
             <div><strong>Report Scope:</strong> AWS Cloud Security Posture (CSPM)</div>
         </div>
@@ -228,6 +229,7 @@ def generate_executive_html_report(
     </div>
 
     <div class="section-heading">Compliance Framework Posture</div>
+    <div class="disclaimer">Scores are technical posture scores derived from available scan evidence. They are not official compliance certifications, attestations, or audit opinions.</div>
     <div style="display: flex; gap: 16px; margin-bottom: 24px; flex-wrap: wrap;">
         {framework_cards}
     </div>

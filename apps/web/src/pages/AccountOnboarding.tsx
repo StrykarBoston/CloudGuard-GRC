@@ -60,7 +60,7 @@ export const AccountOnboarding: React.FC = () => {
       </div>
 
       {success ? (
-        <div className="bg-surface-container/60 border border-passed/30 rounded-2xl p-8 text-center space-y-4 shadow-xl">
+        <div className="bg-surface border border-passed/30 rounded-2xl p-8 text-center space-y-4 shadow-lg">
           <div className="w-14 h-14 bg-passed/10 rounded-full flex items-center justify-center mx-auto text-passed border border-passed/30">
             <CheckCircle2 className="w-8 h-8" />
           </div>
@@ -73,7 +73,7 @@ export const AccountOnboarding: React.FC = () => {
           <div className="pt-4 flex justify-center gap-3">
             <button
               onClick={() => navigate('/dashboard')}
-              className="px-5 py-2.5 bg-primary text-on-primary font-semibold text-xs font-label rounded-lg hover:bg-primary-container transition-all flex items-center gap-2 shadow-[0_0_15px_rgba(0,212,255,0.3)]"
+              className="px-5 py-2.5 bg-primary text-on-primary font-semibold text-xs font-label rounded-lg hover:bg-primary-container transition-all flex items-center gap-2 shadow-sm shadow-blue-500/20"
             >
               <span>Return to Dashboard</span>
               <ArrowRight className="w-4 h-4" />
@@ -83,26 +83,26 @@ export const AccountOnboarding: React.FC = () => {
       ) : (
         <form onSubmit={handleVerifyAndConnect} className="space-y-6">
           {/* Step 1: Provider selection */}
-          <div className="bg-surface-container/50 border border-outline-variant/60 rounded-2xl p-6 shadow-lg space-y-4">
+          <div className="bg-surface border border-outline-variant rounded-2xl p-6 shadow-xs space-y-4">
             <span className="text-xs font-label uppercase text-on-surface-variant tracking-wider font-semibold">
               Step 1: Select Cloud Provider
             </span>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <div className="border border-primary bg-primary/10 rounded-xl p-4 flex items-center gap-3 cursor-pointer">
+              <div className="border-2 border-primary bg-blue-50/60 rounded-xl p-4 flex items-center gap-3 cursor-pointer shadow-xs">
                 <span className="text-primary font-headline font-bold text-sm">AWS</span>
-                <span className="text-[10px] text-passed bg-passed/10 px-2 py-0.5 rounded ml-auto">
+                <span className="text-[10px] text-passed bg-passed/10 px-2 py-0.5 rounded font-semibold ml-auto">
                   Supported
                 </span>
               </div>
-              <div className="border border-outline-variant/40 bg-surface-container-low rounded-xl p-4 flex items-center gap-3 opacity-50 cursor-not-allowed">
+              <div className="border border-outline-variant/60 bg-slate-50 rounded-xl p-4 flex items-center gap-3 opacity-50 cursor-not-allowed">
                 <span className="text-on-surface font-headline font-medium text-sm">Azure</span>
-                <span className="text-[10px] text-on-surface-variant bg-surface-container px-2 py-0.5 rounded ml-auto">
+                <span className="text-[10px] text-on-surface-variant bg-surface px-2 py-0.5 rounded border border-outline-variant ml-auto">
                   v2 Scope
                 </span>
               </div>
-              <div className="border border-outline-variant/40 bg-surface-container-low rounded-xl p-4 flex items-center gap-3 opacity-50 cursor-not-allowed">
+              <div className="border border-outline-variant/60 bg-slate-50 rounded-xl p-4 flex items-center gap-3 opacity-50 cursor-not-allowed">
                 <span className="text-on-surface font-headline font-medium text-sm">GCP</span>
-                <span className="text-[10px] text-on-surface-variant bg-surface-container px-2 py-0.5 rounded ml-auto">
+                <span className="text-[10px] text-on-surface-variant bg-surface px-2 py-0.5 rounded border border-outline-variant ml-auto">
                   v2 Scope
                 </span>
               </div>
@@ -110,7 +110,7 @@ export const AccountOnboarding: React.FC = () => {
           </div>
 
           {/* Step 2: External ID */}
-          <div className="bg-surface-container/50 border border-outline-variant/60 rounded-2xl p-6 shadow-lg space-y-3">
+          <div className="bg-surface border border-outline-variant rounded-2xl p-6 shadow-xs space-y-3">
             <span className="text-xs font-label uppercase text-on-surface-variant tracking-wider font-semibold">
               Step 2: Generate Confused Deputy External ID
             </span>
@@ -118,13 +118,13 @@ export const AccountOnboarding: React.FC = () => {
               Use this unique string in your IAM Role trust policy condition (`sts:ExternalId`). This local build validates it with a safe simulator and never contacts AWS.
             </p>
             <div className="flex items-center gap-2">
-              <div className="flex-1 bg-surface-container-lowest border border-outline-variant/60 rounded-lg p-3 font-mono text-xs text-primary font-bold">
+              <div className="flex-1 bg-slate-50 border border-outline-variant rounded-lg p-3 font-mono text-xs text-primary font-bold">
                 {externalId}
               </div>
               <button
                 type="button"
                 onClick={handleCopyExternalId}
-                className="px-4 py-3 bg-surface-container hover:bg-surface-container-high border border-outline-variant text-on-surface text-xs font-label font-medium rounded-lg transition-colors flex items-center gap-1.5"
+                className="px-4 py-3 bg-surface hover:bg-slate-100 border border-outline-variant text-on-surface text-xs font-label font-medium rounded-lg transition-colors flex items-center gap-1.5 shadow-xs"
               >
                 {copied ? <Check className="w-4 h-4 text-passed" /> : <Copy className="w-4 h-4" />}
                 <span>{copied ? 'Copied!' : 'Copy ID'}</span>
@@ -133,7 +133,7 @@ export const AccountOnboarding: React.FC = () => {
           </div>
 
           {/* Step 3: Role ARN & Alias */}
-          <div className="bg-surface-container/50 border border-outline-variant/60 rounded-2xl p-6 shadow-lg space-y-4">
+          <div className="bg-surface border border-outline-variant rounded-2xl p-6 shadow-xs space-y-4">
             <span className="text-xs font-label uppercase text-on-surface-variant tracking-wider font-semibold">
               Step 3: Provide Read-Only IAM Role Details
             </span>
@@ -148,7 +148,7 @@ export const AccountOnboarding: React.FC = () => {
                 value={alias}
                 onChange={(e) => setAlias(e.target.value)}
                 placeholder="Production-AWS (Primary)"
-                className="w-full p-2.5 bg-surface border border-outline-variant/60 rounded-lg text-xs text-on-surface focus:outline-none focus:border-primary"
+                className="w-full p-2.5 bg-surface border border-outline-variant rounded-lg text-xs text-on-surface focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-xs"
               />
             </div>
 
@@ -162,7 +162,7 @@ export const AccountOnboarding: React.FC = () => {
                 value={accountNumber}
                 onChange={(e) => setAccountNumber(e.target.value)}
                 placeholder="123456789012"
-                className="w-full p-2.5 bg-surface border border-outline-variant/60 rounded-lg text-xs text-on-surface focus:outline-none focus:border-primary"
+                className="w-full p-2.5 bg-surface border border-outline-variant rounded-lg text-xs text-on-surface focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-xs"
               />
             </div>
 
@@ -176,7 +176,7 @@ export const AccountOnboarding: React.FC = () => {
                 value={roleArn}
                 onChange={(e) => setRoleArn(e.target.value)}
                 placeholder="arn:aws:iam::123456789012:role/CloudGuardReadOnlyAuditRole"
-                className="w-full p-2.5 bg-surface border border-outline-variant/60 rounded-lg text-xs font-mono text-on-surface focus:outline-none focus:border-primary"
+                className="w-full p-2.5 bg-surface border border-outline-variant rounded-lg text-xs font-mono text-on-surface focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-xs"
               />
             </div>
 
@@ -191,7 +191,7 @@ export const AccountOnboarding: React.FC = () => {
           <button
             type="submit"
             disabled={verifying}
-            className="w-full py-3 bg-primary hover:bg-primary-container text-on-primary font-headline font-bold rounded-xl text-sm transition-all shadow-[0_0_20px_rgba(0,212,255,0.3)] flex items-center justify-center gap-2"
+            className="w-full py-3 bg-primary hover:bg-primary-container text-on-primary font-headline font-bold rounded-xl text-sm transition-all shadow-md shadow-blue-500/25 flex items-center justify-center gap-2 active:scale-[0.99]"
           >
             {verifying ? (
               <>

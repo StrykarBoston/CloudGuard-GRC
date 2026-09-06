@@ -21,20 +21,20 @@ export const Accounts: React.FC = () => {
 
         <button
           onClick={() => navigate('/accounts/onboard')}
-          className="flex items-center gap-2 px-4 py-2 bg-primary text-on-primary font-label font-semibold rounded-lg text-xs hover:bg-primary-container transition-colors shadow-[0_0_12px_rgba(0,212,255,0.2)]"
+          className="flex items-center gap-2 px-4 py-2 bg-primary text-on-primary font-label font-semibold rounded-lg text-xs hover:bg-primary-container transition-colors shadow-sm shadow-blue-500/20"
         >
           <Plus className="w-4 h-4" />
           <span>Connect New Account</span>
         </button>
       </div>
 
-      <div className="bg-surface-container/50 backdrop-blur-sm border border-outline-variant/60 rounded-2xl p-6 shadow-lg">
+      <div className="bg-surface border border-outline-variant rounded-2xl p-6 shadow-xs">
         {isLoading && <p className="text-sm text-on-surface-variant">Loading connected accounts…</p>}
         {error && <p className="text-sm text-critical">Unable to load accounts. Please sign in again.</p>}
         {!isLoading && !error && accounts.length === 0 && <p className="text-sm text-on-surface-variant">No cloud accounts are connected. Add a local simulated AWS account to begin.</p>}
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs whitespace-nowrap">
-            <thead className="bg-surface-container-low text-on-surface-variant font-medium font-label border-b border-outline-variant/50">
+            <thead className="bg-slate-50 text-on-surface-variant font-semibold font-label text-xs uppercase tracking-wider border-b border-outline-variant">
               <tr>
                 <th className="py-3 px-4">Provider</th>
                 <th className="py-3 px-4">Account Alias</th>
@@ -44,11 +44,11 @@ export const Accounts: React.FC = () => {
                 <th className="py-3 px-4 text-right">Status</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-outline-variant/30">
+            <tbody className="divide-y divide-outline-variant/60">
               {accounts.map((acc) => (
-                <tr key={acc.id} className="hover:bg-surface-container-high/40 transition-colors">
+                <tr key={acc.id} className="hover:bg-blue-50/40 transition-colors">
                   <td className="py-3.5 px-4">
-                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-surface-container text-primary font-headline font-bold border border-primary/20 text-xs">
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-blue-50 text-primary font-headline font-bold border border-blue-200 text-xs">
                       <Cloud className="w-3.5 h-3.5" />
                       {acc.provider}
                     </span>
@@ -62,7 +62,7 @@ export const Accounts: React.FC = () => {
                   <td className="py-3.5 px-4 font-mono text-xs text-on-surface-variant max-w-xs truncate">
                     {acc.role_arn}
                   </td>
-                  <td className="py-3.5 px-4 font-mono text-xs text-primary">
+                  <td className="py-3.5 px-4 font-mono text-xs text-primary font-semibold">
                     {acc.external_id}
                   </td>
                   <td className="py-3.5 px-4 text-right">
