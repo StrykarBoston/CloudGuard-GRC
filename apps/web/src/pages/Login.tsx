@@ -6,7 +6,7 @@ import { Shield, Mail, Lock, Loader2 } from 'lucide-react';
 export const Login: React.FC = () => {
   const navigate = useNavigate();
   const { login } = useAuthStore();
-  const [email, setEmail] = useState('admin@cloudguard.io');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(true);
   const [loading, setLoading] = useState(false);

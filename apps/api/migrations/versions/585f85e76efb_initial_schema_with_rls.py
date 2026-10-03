@@ -130,15 +130,19 @@ def upgrade() -> None:
     
     # RLS Policies
     op.execute("ALTER TABLE findings ENABLE ROW LEVEL SECURITY;")
+    op.execute("ALTER TABLE findings FORCE ROW LEVEL SECURITY;")
     op.execute("CREATE POLICY tenant_isolation_findings ON findings USING (tenant_id = current_setting('app.current_tenant_id', true));")
     
     op.execute("ALTER TABLE cloud_accounts ENABLE ROW LEVEL SECURITY;")
+    op.execute("ALTER TABLE cloud_accounts FORCE ROW LEVEL SECURITY;")
     op.execute("CREATE POLICY tenant_isolation_cloud_accounts ON cloud_accounts USING (tenant_id = current_setting('app.current_tenant_id', true));")
     
     op.execute("ALTER TABLE audit_logs ENABLE ROW LEVEL SECURITY;")
+    op.execute("ALTER TABLE audit_logs FORCE ROW LEVEL SECURITY;")
     op.execute("CREATE POLICY tenant_isolation_audit_logs ON audit_logs USING (tenant_id = current_setting('app.current_tenant_id', true));")
     
     op.execute("ALTER TABLE scans ENABLE ROW LEVEL SECURITY;")
+    op.execute("ALTER TABLE scans FORCE ROW LEVEL SECURITY;")
     op.execute("CREATE POLICY tenant_isolation_scans ON scans USING (tenant_id = current_setting('app.current_tenant_id', true));")
     # ### end Alembic commands ###
 

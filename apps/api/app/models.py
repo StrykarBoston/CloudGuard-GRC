@@ -30,6 +30,8 @@ class User(Base):
     password_hash: Mapped[str] = mapped_column(String(500))
     role: Mapped[str] = mapped_column(String(32), default="ACCOUNT_ADMIN")
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    failed_login_attempts: Mapped[int] = mapped_column(Integer, default=0)
+    locked_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
 
 
@@ -39,6 +41,7 @@ class Session(Base):
     user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
     refresh_token_hash: Mapped[str] = mapped_column(String(128), unique=True)
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    remember_me: Mapped[bool] = mapped_column(Boolean, default=True)
     revoked: Mapped[bool] = mapped_column(Boolean, default=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
 
@@ -53,7 +56,7 @@ class CloudAccount(Base):
     role_arn: Mapped[str] = mapped_column(String(512))
     external_id: Mapped[str] = mapped_column(String(128))
     connection_status: Mapped[str] = mapped_column(String(24), default="ACTIVE")
-    validation_mode: Mapped[str] = mapped_column(String(32), default="local_mock")
+    validation_mode: Mapped[str] = mapped_column(String(32), default="aws_sts_readonly")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
     __table_args__ = (UniqueConstraint("tenant_id", "role_arn", name="uq_tenant_role_arn"),)
 
@@ -91,7 +94,19 @@ class Finding(Base):
     evidence: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
     remediation_json: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
     compliance_controls: Mapped[list[str]] = mapped_column(JSON, default=list)
+    assigned_to_user_id: Mapped[str | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
+    due_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     detected_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
+
+
+class TenantSettings(Base):
+    __tablename__ = "tenant_settings"
+    tenant_id: Mapped[str] = mapped_column(ForeignKey("tenants.id", ondelete="CASCADE"), primary_key=True)
+    daily_scans_enabled: Mapped[bool] = mapped_column(Boolean, default=False)
+    daily_scan_hour_utc: Mapped[int] = mapped_column(Integer, default=2)
+    slack_alerts_enabled: Mapped[bool] = mapped_column(Boolean, default=False)
+    last_scheduled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now, onupdate=now)
 
 
 class AuditLog(Base):

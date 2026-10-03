@@ -15,7 +15,7 @@ export const AccountOnboarding: React.FC = () => {
   const onboard = useOnboard();
   const startScan = useStartScan();
   const [copied, setCopied] = useState(false);
-  const [externalId] = useState(`cg-ext-${Math.random().toString(36).substring(2, 12)}`);
+  const [externalId] = useState(`cg-ext-${crypto.randomUUID().replaceAll('-', '').slice(0, 16)}`);
   const [roleArn, setRoleArn] = useState('');
   const [alias, setAlias] = useState('');
   const [accountNumber, setAccountNumber] = useState('');
@@ -40,7 +40,7 @@ export const AccountOnboarding: React.FC = () => {
 
     setVerifying(true);
     try {
-      const account = await onboard.mutateAsync({ account_alias: alias, account_number: accountNumber, role_arn: roleArn, external_id: externalId, validation_mode: 'local_mock' });
+      const account = await onboard.mutateAsync({ account_alias: alias, account_number: accountNumber, role_arn: roleArn, external_id: externalId });
       await startScan.mutateAsync(account.id);
       setSuccess(true);
     } catch (requestError) {
@@ -68,7 +68,7 @@ export const AccountOnboarding: React.FC = () => {
             AWS Account Connected Successfully!
           </h2>
           <p className="text-xs text-on-surface-variant max-w-md mx-auto">
-            Local simulated sts:AssumeRole validation succeeded. A read-only baseline scan is running.
+            AWS STS validation succeeded. Temporary credentials were verified and a scan is running.
           </p>
           <div className="pt-4 flex justify-center gap-3">
             <button
@@ -115,7 +115,7 @@ export const AccountOnboarding: React.FC = () => {
               Step 2: Generate Confused Deputy External ID
             </span>
             <p className="text-xs text-on-surface-variant leading-relaxed">
-              Use this unique string in your IAM Role trust policy condition (`sts:ExternalId`). This local build validates it with a safe simulator and never contacts AWS.
+              Use this unique string in your IAM role trust policy condition (`sts:ExternalId`). CloudGuard validates it by requesting temporary credentials through AWS STS.
             </p>
             <div className="flex items-center gap-2">
               <div className="flex-1 bg-slate-50 border border-outline-variant rounded-lg p-3 font-mono text-xs text-primary font-bold">
@@ -196,7 +196,7 @@ export const AccountOnboarding: React.FC = () => {
             {verifying ? (
               <>
                 <Loader2 className="w-4 h-4 animate-spin" />
-                <span>Testing sts:AssumeRole connection...</span>
+                <span>Validating AWS STS role...</span>
               </>
             ) : (
               <span>Verify & Connect Account</span>

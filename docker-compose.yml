@@ -5,8 +5,6 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-cloudguard}
       POSTGRES_USER: ${POSTGRES_USER:-cloudguard}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change-me-for-local-development}
-    ports:
-      - "${POSTGRES_PORT:-5432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -17,26 +15,9 @@ services:
 
   redis:
     image: redis:7.4-alpine
-    ports:
-      - "${REDIS_PORT:-6379}:6379"
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
-      timeout: 5s
-      retries: 12
-
-  localstack:
-    image: localstack/localstack:3.8
-    environment:
-      SERVICES: sts,s3,iam,ec2,cloudtrail
-      DEBUG: "0"
-    ports:
-      - "${LOCALSTACK_PORT:-4566}:4566"
-    volumes:
-      - localstack_data:/var/lib/localstack
-    healthcheck:
-      test: ["CMD-SHELL", "awslocal sts get-caller-identity >/dev/null 2>&1 || exit 1"]
-      interval: 10s
       timeout: 5s
       retries: 12
 
@@ -46,18 +27,43 @@ services:
     environment:
       APP_ENV: ${APP_ENV:-development}
       DATABASE_URL: ${DATABASE_URL:-postgresql+asyncpg://cloudguard:change-me-for-local-development@postgres:5432/cloudguard}
+      JWT_SECRET: ${JWT_SECRET:-local-development-only-change-before-deployment}
       REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
-      AWS_ENDPOINT_URL: ${AWS_ENDPOINT_URL:-http://localstack:4566}
+      AWS_PROFILE: ${AWS_PROFILE:-default}
+      AWS_SHARED_CREDENTIALS_FILE: /root/.aws/credentials
+      AWS_CONFIG_FILE: /root/.aws/config
+      SLACK_WEBHOOK_URL: ${SLACK_WEBHOOK_URL:-}
     ports:
       - "${API_PORT:-8000}:8000"
     volumes:
       - ./apps/api:/app
+      - ${AWS_CONFIG_DIR:-./.aws}:/root/.aws:ro
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
-      localstack:
+
+  worker:
+    build:
+      context: ./apps/api
+    command: ["arq", "app.worker.WorkerSettings"]
+    environment:
+      APP_ENV: ${APP_ENV:-development}
+      DATABASE_URL: ${DATABASE_URL:-postgresql+asyncpg://cloudguard:change-me-for-local-development@postgres:5432/cloudguard}
+      JWT_SECRET: ${JWT_SECRET:-local-development-only-change-before-deployment}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
+      AWS_PROFILE: ${AWS_PROFILE:-default}
+      AWS_SHARED_CREDENTIALS_FILE: /root/.aws/credentials
+      AWS_CONFIG_FILE: /root/.aws/config
+      SLACK_WEBHOOK_URL: ${SLACK_WEBHOOK_URL:-}
+    volumes:
+      - ./apps/api:/app
+      - ${AWS_CONFIG_DIR:-./.aws}:/root/.aws:ro
+    depends_on:
+      api:
+        condition: service_started
+      redis:
         condition: service_healthy
 
   web:
@@ -76,4 +82,3 @@ services:
 
 volumes:
   postgres_data:
-  localstack_data:

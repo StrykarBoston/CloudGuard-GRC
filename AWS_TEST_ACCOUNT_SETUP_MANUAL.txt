@@ -1,0 +1,569 @@
+================================================================================
+CLOUDGUARD GRC: LIVE AWS TEST ACCOUNT SETUP & INTEGRATION MANUAL
+================================================================================
+
+This manual provides complete step-by-step instructions for creating an isolated
+AWS sandbox account, configuring a read-only cross-account IAM role with an
+External ID, intentionally deploying safe misconfigurations for detection testing,
+and connecting the account to CloudGuard GRC.
+
+It is intended for a controlled security lab environment and should never be used
+inside a production or shared AWS account.
+
+--------------------------------------------------------------------------------
+TABLE OF CONTENTS
+--------------------------------------------------------------------------------
+1. Architecture & Security Model
+2. Phase 0: Create a New AWS Test Account
+3. Phase 1: AWS Account Safety Checks and Prerequisites
+4. Phase 2: Create Read-Only IAM Role (Console & CLI Methods)
+5. Phase 3: Validate the Trust Policy and External ID
+6. Phase 4: Create Intentional Test Flaws (Detection Benchmarks)
+7. Phase 5: Connect Account in CloudGuard GRC
+8. Phase 6: Verification & Scan Execution
+9. Phase 7: Troubleshooting Common AWS Errors
+10. Phase 8: Teardown & Cleanup (Zero Cloud Sprawl)
+
+================================================================================
+1. ARCHITECTURE & SECURITY MODEL
+================================================================================
+
+CloudGuard GRC (Local/Host)                Target AWS Test Account
++----------------------------+             +-----------------------------------+
+|  Scan Engine               |             |  IAM Role:                        |
+|                            |             |  CloudGuardReadOnlyAuditRole      |
+|  External ID               |  sts:       |                                   |
+|  (e.g., cg-ext-9a8b7c)     |  AssumeRole |  Attached AWS Managed Policy:     |
+|                            +------------>|  - SecurityAudit                  |
+|  Validation Mode:          |             |  - ViewOnlyAccess                 |
+|  Strict Read-Only Access   |             |                                   |
++----------------------------+             |  Audited Resources:               |
+                                           |  S3, EC2, IAM, CloudTrail, KMS    |
+                                           +-----------------------------------+
+
+Key Security Guarantees:
+ Agentless and restricted to roles attached only to AWS-managed SecurityAudit
+ and optional ViewOnlyAccess policies; inline and other attached policies are rejected.
+ Uses temporary STS credentials and an External ID to reduce Confused Deputy risk.
+
+The API process must have AWS credentials configured through the AWS SDK provider
+chain. Those credentials are used only to call STS AssumeRole. Never enter AWS keys
+in the web form or commit credentials to Git.
+
+================================================================================
+2. PHASE 0: CREATE A NEW AWS TEST ACCOUNT
+================================================================================
+
+IMPORTANT: Use a dedicated AWS test account or sandbox account. Do not use a
+production or shared account for these exercises.
+
+STEP 1: Open the AWS account creation page
+- Visit: https://portal.aws.amazon.com/billing/signup
+- Choose a personal or business account. For a sandbox lab, a personal account is
+  typically the simplest option.
+
+STEP 2: Sign up with a valid email address
+- Use a dedicated email address you control.
+- Choose a strong password for the AWS root account.
+- Complete the CAPTCHA if prompted.
+
+STEP 3: Select the account type
+- Choose "Personal" or "Professional" based on how you plan to use the account.
+- For a lab environment, the personal account option is usually sufficient.
+
+STEP 4: Enter contact information
+- Fill in your full name, phone number, and address.
+- Use a real and valid address, because AWS may verify your identity during signup.
+- Confirm your country/region.
+
+STEP 5: Add a valid payment method
+- AWS requires a payment method for account creation.
+- Use a valid card or other supported payment option.
+- Ensure billing alerts are enabled before starting any test resources.
+
+STEP 6: Verify your identity
+- AWS may send a verification code by SMS or call.
+- Enter the code when prompted.
+- If two-step verification is required, complete it immediately.
+
+STEP 7: Choose a support plan
+- Select the Basic Support plan for a low-cost sandbox option.
+- You can upgrade later if needed, but Basic is enough for a lab.
+
+STEP 8: Complete signup
+- Review the confirmation page.
+- Wait until AWS completes the account activation.
+- Once the account is ready, sign in to the AWS Management Console.
+
+STEP 9: Secure the root account
+- Sign in to the AWS Console with the root account.
+- Enable Multi-Factor Authentication (MFA) immediately.
+- Do not use the root account for day-to-day operations.
+
+STEP 10: Create an admin IAM user for safe setup
+- Prefer IAM Identity Center and a temporary, MFA-protected administrator role for
+  lab setup. Do not create long-lived access keys for an IAM user.
+- If a standalone lab requires an IAM console user, enable MFA, create no access
+  keys, and delete or disable that user after setup.
+- Keep the root account locked down and use it only for account-level tasks.
+
+STEP 11: Set up billing protections
+- Go to Billing > Budgets.
+- Create a monthly budget alarm.
+- Configure alerts at 50%, 80%, and 100% of your planned spend.
+- This reduces the risk of accidental charges from open security groups, EC2, or NAT resources.
+
+STEP 12: Set the account alias and record identifying details
+- Open IAM > Account settings.
+- Create an account alias such as: CloudGuardTestLab
+- Copy and save the 12-digit AWS Account ID.
+- Example: 123456789012
+
+STEP 13: Confirm your working region
+- AWS resources can vary by region.
+- For this lab, use us-east-1 or another region you understand well.
+- Record your chosen region in your notes.
+
+================================================================================
+3. PHASE 1: AWS ACCOUNT SAFETY CHECKS AND PREREQUISITES
+================================================================================
+
+Before creating any IAM role or cloud resources, confirm the following:
+
+1. AWS CLI is installed and working
+   aws --version
+
+2. You are authenticated to the correct account
+   aws sts get-caller-identity
+
+3. Your current account ID is recorded
+   aws sts get-caller-identity --query Account --output text
+
+Shell note for Windows:
+- The multi-line AWS CLI examples below use Bash continuation (`\`) and heredoc
+  syntax. Run them in Git Bash or WSL. In PowerShell, place each AWS command on
+  one line and use PowerShell here-strings instead of `cat <<EOF`.
+
+4. Your default region is configured correctly
+   aws configure get region
+
+5. Configure a named AWS CLI profile with IAM Identity Center
+  aws configure sso --profile <CLOUDGUARD_PROFILE>
+  aws sso login --profile <CLOUDGUARD_PROFILE>
+
+6. Check the available regions
+   aws ec2 describe-regions --output table
+
+7. Create a budget alarm and set billing alerts
+   - AWS Console: Billing > Budgets > Create budget
+
+8. Confirm the account is a sandbox-only environment
+   - No production workloads
+   - No customer data
+   - No shared team resources
+   - No internet-facing services beyond temporary test setup
+
+9. Configure the AWS profile used by the CloudGuard API container
+   - Create a named AWS CLI profile using IAM Identity Center or another approved
+     short-lived credential method.
+   - Verify it with: aws sts get-caller-identity --profile <CLOUDGUARD_PROFILE>
+   - Before starting Docker Compose in PowerShell, set:
+     $env:AWS_PROFILE = "<CLOUDGUARD_PROFILE>"
+     $env:AWS_CONFIG_DIR = "$HOME\.aws"
+   - Compose mounts this directory read-only at /root/.aws. Do not copy credentials
+     into the repository. Renew an expired SSO login on the host before scanning.
+
+================================================================================
+4. PHASE 2: CREATE READ-ONLY IAM ROLE
+================================================================================
+
+CloudGuard GRC connects via STS AssumeRole using an External ID condition and
+attaches AWS-managed policies such as SecurityAudit and ViewOnlyAccess.
+Before creating the target role, open CloudGuard's onboarding page and copy its
+generated External ID. The trusted principal is the AWS identity used by the
+CloudGuard API runtime, not automatically the target account. Use the caller
+account/principal shown by `aws sts get-caller-identity` and restrict trust to the
+CloudGuard runtime role whenever possible.
+
+--------------------------------------------------------------------------------
+METHOD A: USING THE AWS MANAGEMENT CONSOLE
+--------------------------------------------------------------------------------
+
+Step 1: Navigate to IAM
+- Go to IAM > Roles > Create role.
+
+Step 2: Select a trusted entity
+- Trusted entity type: AWS account
+- Select "Another AWS account"
+- Enter the AWS account ID that owns the CloudGuard API runtime principal.
+- This may differ from the AWS account being audited.
+- Enable "Require external ID".
+- Enter an External ID such as: cg-ext-demo-lab-001
+- Leave MFA unchecked for the role itself unless you explicitly want to enforce MFA.
+- Click Next.
+
+Step 3: Add permissions
+- Search for SecurityAudit and select it.
+- Optional: also attach ViewOnlyAccess for broader inventory visibility.
+- Click Next.
+
+Step 4: Name and review
+- Role name: CloudGuardReadOnlyAuditRole
+- Description: Read-only auditing role for CloudGuard GRC CSPM platform.
+- Review the trust policy and permissions.
+- Click Create role.
+
+Step 5: Copy the role ARN
+- Open the role after creation.
+- Copy the ARN.
+- Format should look like:
+  arn:aws:iam::<YOUR_ACCOUNT_ID>:role/CloudGuardReadOnlyAuditRole
+
+--------------------------------------------------------------------------------
+METHOD B: USING AWS CLI (SCRIPTED SETUP)
+--------------------------------------------------------------------------------
+
+1. Create a trust policy file named trust-policy.json
+
+Replace <CALLER_ACCOUNT_ID> and <YOUR_EXTERNAL_ID> with your actual values.
+The caller account is the account running CloudGuard. For production, narrow the
+principal to the specific runtime IAM role instead of trusting every principal in
+the caller account.
+
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Principal": {
+        "AWS": "arn:aws:iam::<CALLER_ACCOUNT_ID>:root"
+      },
+      "Action": "sts:AssumeRole",
+      "Condition": {
+        "StringEquals": {
+          "sts:ExternalId": "<YOUR_EXTERNAL_ID>"
+        },
+        "ArnLike": {
+          "aws:PrincipalArn": "arn:aws:iam::<CALLER_ACCOUNT_ID>:role/<CLOUDGUARD_RUNTIME_ROLE>"
+        }
+      }
+    }
+  ]
+}
+
+2. Create the role
+aws iam create-role \
+  --role-name CloudGuardReadOnlyAuditRole \
+  --assume-role-policy-document file://trust-policy.json \
+  --description "Read-only auditing role for CloudGuard GRC CSPM"
+
+The CloudGuard API caller also needs an identity policy allowing `sts:AssumeRole`
+on this exact target role ARN. Do not grant `sts:AssumeRole` on `*`.
+
+3. Attach the required managed policies
+aws iam attach-role-policy \
+  --role-name CloudGuardReadOnlyAuditRole \
+  --policy-arn arn:aws:iam::aws:policy/SecurityAudit
+
+aws iam attach-role-policy \
+  --role-name CloudGuardReadOnlyAuditRole \
+  --policy-arn arn:aws:iam::aws:policy/job-function/ViewOnlyAccess
+
+4. Verify the role and ARN
+aws iam get-role --role-name CloudGuardReadOnlyAuditRole --query "Role.Arn" --output text
+
+================================================================================
+5. PHASE 3: VALIDATE THE TRUST POLICY AND EXTERNAL ID
+================================================================================
+
+This is a critical step. Always validate the AssumeRole flow before attempting a
+full CloudGuard scan.
+
+1. Generate or confirm the External ID
+- Example: cg-ext-demo-lab-001
+
+2. Test the assume-role call with the correct External ID
+aws sts assume-role \
+  --role-arn arn:aws:iam::<YOUR_ACCOUNT_ID>:role/CloudGuardReadOnlyAuditRole \
+  --role-session-name cloudguard-validation \
+  --external-id <YOUR_EXTERNAL_ID>
+
+3. Test the wrong External ID to confirm the trust policy is enforced
+aws sts assume-role \
+  --role-arn arn:aws:iam::<YOUR_ACCOUNT_ID>:role/CloudGuardReadOnlyAuditRole \
+  --role-session-name cloudguard-bad-id \
+  --external-id wrong-id
+
+Expected behavior:
+- Correct ID: successful AssumeRole
+- Wrong ID: AccessDenied
+
+4. Verify attached policies
+aws iam list-attached-role-policies --role-name CloudGuardReadOnlyAuditRole --output table
+
+5. Check the trust relationship
+aws iam get-role --role-name CloudGuardReadOnlyAuditRole --query "AssumeRolePolicyDocument" --output json
+
+6. Check for access analyzer findings
+- AWS Console: IAM > Access Analyzer
+- Review any public or external access issues
+
+================================================================================
+6. PHASE 4: CREATE INTENTIONAL TEST FLAWS (DETECTION BENCHMARKS)
+================================================================================
+
+The following resources are intentionally misconfigured to validate CloudGuard GRC
+detection and scoring logic. They are safe for a sandbox but should be removed at
+end of testing.
+
+--------------------------------------------------------------------------------
+Test Flaw 1: S3 bucket without public access block (CIS AWS 2.1.1)
+--------------------------------------------------------------------------------
+This does not by itself make the bucket publicly readable; it tests the bucket
+protection configuration. CloudGuard separately checks public bucket policies/ACLs.
+
+aws s3api create-bucket \
+  --bucket cloudguard-test-unprotected-bucket-<YOUR_ACCOUNT_ID> \
+  --region us-east-1
+
+aws s3api put-public-access-block \
+  --bucket cloudguard-test-unprotected-bucket-<YOUR_ACCOUNT_ID> \
+  --public-access-block-configuration "BlockPublicAcls=false,IgnorePublicAcls=false,BlockPublicPolicy=false,RestrictPublicBuckets=false"
+
+Optional verification:
+aws s3api get-public-access-block --bucket cloudguard-test-unprotected-bucket-<YOUR_ACCOUNT_ID>
+
+--------------------------------------------------------------------------------
+Test Flaw 2: EC2 security group with unrestricted SSH (CIS AWS 5.2)
+--------------------------------------------------------------------------------
+VPC_ID=$(aws ec2 describe-vpcs --filters "Name=isDefault,Values=true" --query "Vpcs[0].VpcId" --output text)
+
+SG_ID=$(aws ec2 create-security-group \
+  --group-name "cloudguard-test-insecure-sg" \
+  --description "Test security group with open SSH ingress" \
+  --vpc-id $VPC_ID \
+  --query "GroupId" --output text)
+
+aws ec2 authorize-security-group-ingress \
+  --group-id $SG_ID \
+  --protocol tcp \
+  --port 22 \
+  --cidr 0.0.0.0/0
+
+Optional validation:
+aws ec2 describe-security-groups --group-ids $SG_ID --query "SecurityGroups[*].IpPermissions"
+
+--------------------------------------------------------------------------------
+Test Flaw 3: IAM policy with wildcard admin action (CIS AWS 1.16)
+--------------------------------------------------------------------------------
+cat <<EOF > test-wildcard-policy.json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "AllowAllToAll",
+      "Effect": "Allow",
+      "Action": "*",
+      "Resource": "*"
+    }
+  ]
+}
+EOF
+
+aws iam create-policy \
+  --policy-name "CloudGuardTestWildcardAdminPolicy" \
+  --policy-document file://test-wildcard-policy.json
+
+Attach the test policy to an empty IAM group so no user receives the permissions.
+Do not attach it to CloudGuardReadOnlyAuditRole or any active principal.
+
+aws iam create-group --group-name CloudGuardTestWildcardPolicyGroup
+aws iam attach-group-policy \
+  --group-name CloudGuardTestWildcardPolicyGroup \
+  --policy-arn arn:aws:iam::<YOUR_ACCOUNT_ID>:policy/CloudGuardTestWildcardAdminPolicy
+
+--------------------------------------------------------------------------------
+Additional safe benchmark checks to consider
+--------------------------------------------------------------------------------
+The following checks are not currently implemented by CloudGuard; do not expect
+the current scan to report them yet:
+- S3 bucket policy that allows public read/write
+- CloudTrail logging disabled
+- IAM user with no MFA enabled
+- Default VPC or open route tables
+- KMS key without rotation
+- Security groups open to 0.0.0.0/0 on RDP (3389)
+- Unencrypted EBS volumes
+
+================================================================================
+7. PHASE 5: CONNECT ACCOUNT IN CLOUDGUARD GRC
+================================================================================
+
+1. Open your web browser and navigate to:
+   http://localhost:5173
+
+2. Log in to your CloudGuard GRC account (or register a new organization profile).
+
+3. In the sidebar, click "Accounts" and then click "Connect New Account"
+   (URL: http://localhost:5173/accounts/onboard)
+
+4. Step 1 (Select Provider):
+   - Choose AWS.
+
+5. Step 2 (External ID):
+   - Copy the generated external ID (for example: cg-ext-xxxxxxxxxx).
+   - Ensure it matches the same ID used in the trust policy.
+
+6. Step 3 (Role Details):
+   - Account alias: AWS-Test-Lab
+   - AWS 12-digit Account ID: <YOUR_12_DIGIT_ACCOUNT_ID>
+   - IAM role ARN: arn:aws:iam::<YOUR_ACCOUNT_ID>:role/CloudGuardReadOnlyAuditRole
+
+7. Click "Verify & Connect Account". The API must have the AWS profile configured
+  in Phase 1. It performs a real STS AssumeRole, checks the target account ID, and
+  rejects inline or attached policies outside SecurityAudit and optional ViewOnlyAccess.
+
+================================================================================
+8. PHASE 6: VERIFICATION & SCAN EXECUTION
+================================================================================
+
+1. Return to the Dashboard.
+2. Click "Run On-Demand Scan".
+3. Wait for the scan to complete.
+4. Open the Findings Explorer and confirm the expected findings appear:
+  - aws.s3.public-access-block or aws.s3.public-exposure
+  - aws.ec2.security-group.open-admin (SSH or RDP)
+  - aws.iam.wildcard-admin
+  - aws.s3.default-encryption (explicit configuration missing; S3 uses SSE-S3
+    by default for new objects)
+  - aws.kms.key-rotation (eligible customer-managed symmetric keys only)
+5. Review each finding and click "View Fix" to inspect remediation guidance.
+6. Open the Compliance Matrix and verify posture evaluation against relevant framework benchmarks.
+7. Export the HTML audit report. Use the browser's Print > Save as PDF if needed.
+
+EC2 security groups and KMS keys are scanned in enabled regions. S3 and IAM use
+account/global APIs; CloudTrail is checked for active multi-region trails.
+AccessDenied or service errors mark the scan partial; partial is not a clean result.
+
+================================================================================
+9. PHASE 7: TROUBLESHOOTING COMMON AWS ERRORS
+================================================================================
+
+AccessDenied when assuming the role
+- Confirm the trust policy includes the correct account ID.
+- Check that the External ID is exactly the same in the trust policy and the role setup.
+- Verify the role exists in the expected AWS account.
+
+Role not found
+- Check the role name spelling.
+- Confirm the AWS account region and CLI profile are correct.
+- Run:
+  aws iam get-role --role-name CloudGuardReadOnlyAuditRole
+
+Policy attachment issues
+- Run:
+  aws iam list-attached-role-policies --role-name CloudGuardReadOnlyAuditRole
+- Make sure SecurityAudit and ViewOnlyAccess are attached.
+
+S3 bucket creation errors
+- Bucket names must be globally unique.
+- Check if the name already exists.
+- Use a bucket naming pattern that includes the account ID or a random suffix.
+
+EC2 security group not found
+- Ensure the default VPC exists.
+- Run:
+  aws ec2 describe-vpcs --filters "Name=isDefault,Values=true"
+
+AWS CLI authentication errors
+- Run:
+  aws sts get-caller-identity
+- Reconfigure credentials if needed:
+  aws configure
+- Check the current active profile:
+  aws configure list
+
+CloudGuard cannot find AWS credentials in Docker
+- Confirm AWS_CONFIG_DIR points to the host directory containing the AWS profile
+  files and AWS_PROFILE matches the profile name.
+- Run `aws sts get-caller-identity --profile <CLOUDGUARD_PROFILE>` on the host.
+- Renew an expired SSO session on the host and restart the API container.
+
+Role rejected as not read-only
+- Attach SecurityAudit and optionally ViewOnlyAccess only.
+- Remove inline role policies and all unapproved attached policies.
+- Do not attach the wildcard test policy to CloudGuardReadOnlyAuditRole.
+
+Scan is partial
+- Review the scan error summary for the denied service or region.
+- Do not add write permissions to work around AccessDenied; grant only missing
+  read actions after reviewing the role policy.
+
+================================================================================
+10. PHASE 8: TEARDOWN & CLEANUP (ZERO CLOUD SPRAWL)
+================================================================================
+
+When testing is complete, delete all test resources and confirm no unwanted
+services remain active.
+
+1. Detach and delete the IAM role and temporary policy
+aws iam detach-group-policy --group-name CloudGuardTestWildcardPolicyGroup --policy-arn arn:aws:iam::<YOUR_ACCOUNT_ID>:policy/CloudGuardTestWildcardAdminPolicy
+aws iam delete-group --group-name CloudGuardTestWildcardPolicyGroup
+aws iam delete-policy --policy-arn arn:aws:iam::<YOUR_ACCOUNT_ID>:policy/CloudGuardTestWildcardAdminPolicy
+aws iam detach-role-policy --role-name CloudGuardReadOnlyAuditRole --policy-arn arn:aws:iam::aws:policy/SecurityAudit
+aws iam detach-role-policy --role-name CloudGuardReadOnlyAuditRole --policy-arn arn:aws:iam::aws:policy/job-function/ViewOnlyAccess
+aws iam delete-role --role-name CloudGuardReadOnlyAuditRole
+
+2. Delete the test security group
+aws ec2 delete-security-group --group-id $SG_ID
+
+3. Delete the test S3 bucket
+aws s3 rb s3://cloudguard-test-unprotected-bucket-<YOUR_ACCOUNT_ID> --force
+
+4. Remove local temporary files
+rm -f trust-policy.json test-wildcard-policy.json
+
+5. Validate cost controls and cleanup
+- Check Billing > Bills for unexpected charges
+- Review EC2, S3, IAM, and CloudTrail resources
+- Delete orphaned snapshots, EIPs, NAT gateways, and security groups
+- Confirm no test services remain running
+
+6. Tag or label all resources
+Use tags such as:
+- Project=CloudGuardTestLab
+- Owner=YourName
+- Environment=Sandbox
+- AutoDelete=true
+
+7. Remove old local simulator records from CloudGuard PostgreSQL
+From the repository root, first preview the count:
+  docker compose exec api python scripts/purge_simulator_data.py
+Then permanently remove only rows marked validation_mode=local_mock:
+  docker compose exec api python scripts/purge_simulator_data.py --apply
+This deletes those account records and dependent scans/findings; it makes no AWS calls.
+
+8. If LocalStack was previously run, identify and remove only its old volume
+  docker volume ls --filter name=localstack_data
+Review the exact matching LocalStack volume name before removing it with:
+  docker volume rm <EXACT_LOCALSTACK_VOLUME_NAME>
+Do not use `docker compose down -v`; it would also delete PostgreSQL data.
+
+================================================================================
+LIMITATION NOTE
+================================================================================
+
+CloudGuard uses real AWS STS and read-only AWS API calls for the checks listed in
+this manual. Coverage is limited to those implemented checks; it is not a complete
+AWS inventory, a legal compliance decision, or an official certification. Scores
+are technical posture scores based on collected evidence. Controls without evidence
+must remain unknown/NEEDS_REVIEW, and partial scans must not be treated as clean.
+
+The API stores connection metadata and ExternalId, not temporary STS credentials.
+It obtains temporary credentials again for each scan. Configure the API's AWS
+runtime profile and verify role trust/permissions before connecting an account.
+
+================================================================================
+END OF MANUAL
+================================================================================
+

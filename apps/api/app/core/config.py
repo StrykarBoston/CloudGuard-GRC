@@ -9,14 +9,15 @@ class Settings(BaseSettings):
 
     app_name: str = "CloudGuard GRC API"
     app_env: str = "development"
-    database_url: str = "postgresql+asyncpg://cloudguard:change-me-for-local-development@localhost:5432/cloudguard"
-    jwt_secret: str = "local-development-only-change-before-deployment"
+    database_url: str
+    jwt_secret: str
     jwt_algorithm: str = "HS256"
     access_token_minutes: int = 15
     refresh_token_days: int = 30
+    redis_url: str = "redis://redis:6379/0"
+    slack_webhook_url: str | None = None
     cors_origins: str = "http://localhost:5173,http://127.0.0.1:5173"
     sql_echo: bool = False
-    local_aws_simulation: bool = True
     secret_scan_root: str = "."
 
     @field_validator("jwt_secret")

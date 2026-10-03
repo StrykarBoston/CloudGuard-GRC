@@ -1,7 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useScanStore } from '../store/useScanStore';
-import { useDashboard, useFindings, useCompliance } from '../hooks/useCloudGuard';
+import { useDashboard, useFindings, useCompliance, useSettings } from '../hooks/useCloudGuard';
 import {
   Shield,
   AlertTriangle,
@@ -19,12 +19,15 @@ export const Dashboard: React.FC = () => {
   const { data: threatSummary, isLoading: isDashLoading } = useDashboard();
   const { data: findings = [], isLoading: isFindingsLoading } = useFindings();
   const { data: frameworks = [], isLoading: isFrameworksLoading } = useCompliance();
+  const { data: scanSettings, isLoading: isSettingsLoading, error: settingsError } = useSettings();
 
-  if (isDashLoading || isFindingsLoading || isFrameworksLoading) {
+  if (isDashLoading || isFindingsLoading || isFrameworksLoading || isSettingsLoading) {
     return <div className="flex justify-center items-center h-64"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>;
   }
 
-  if (!threatSummary) return null;
+  if (!threatSummary || settingsError) {
+    return <div className="rounded-xl border border-critical/30 bg-critical/10 p-5 text-sm text-critical">Unable to load the security dashboard. Refresh the page or sign in again.</div>;
+  }
 
   const handleViewFix = (finding: (typeof findings)[0]) => {
     selectFinding(finding);
@@ -33,6 +36,17 @@ export const Dashboard: React.FC = () => {
 
   const criticalAndHigh = findings.filter(
     (f) => f.severity === 'CRITICAL' || f.severity === 'HIGH'
+  );
+  const scheduleLabel = !scanSettings?.daily_scans_enabled
+    ? 'Automated scans are disabled'
+    : `Daily at ${String(scanSettings.daily_scan_hour_utc).padStart(2, '0')}:00 UTC`;
+
+  const maxSeverityCount = Math.max(
+    threatSummary.severity_breakdown.critical,
+    threatSummary.severity_breakdown.high,
+    threatSummary.severity_breakdown.medium,
+    threatSummary.severity_breakdown.low,
+    1
   );
 
   return (
@@ -95,35 +109,35 @@ export const Dashboard: React.FC = () => {
           </div>
         </div>
 
-        {/* Scanned Resources */}
+        {/* Affected Resources */}
         <div className="bg-surface border border-outline-variant rounded-2xl p-6 flex flex-col justify-between hover:border-secondary/30 transition-all shadow-sm hover:shadow-md">
           <div className="flex justify-between items-start mb-4">
             <span className="text-xs font-label text-on-surface-variant uppercase tracking-wider font-semibold">
-              Scanned Resources
+              Resources With Findings
             </span>
             <Cloud className="w-5 h-5 text-secondary" />
           </div>
           <div className="flex items-end gap-3">
             <span className="text-4xl font-headline font-bold text-on-surface">
-              {threatSummary.scanned_resources}
+              {threatSummary.resources_with_findings}
             </span>
             <span className="text-xs text-on-surface-variant mb-1 font-label">
-              S3, IAM, EC2, CloudTrail
+              Based on open findings
             </span>
           </div>
         </div>
 
-        {/* Active Policies */}
+        {/* High Severity Findings */}
         <div className="bg-surface border border-outline-variant rounded-2xl p-6 flex flex-col justify-between hover:border-high/30 transition-all shadow-sm hover:shadow-md">
           <div className="flex justify-between items-start mb-4">
             <span className="text-xs font-label text-on-surface-variant uppercase tracking-wider font-semibold">
-              Active Policies
+              High Severity Findings
             </span>
             <FileCheck2 className="w-5 h-5 text-high" />
           </div>
           <div className="flex items-end gap-3">
             <span className="text-4xl font-headline font-bold text-on-surface">
-              {threatSummary.active_policies}
+              {threatSummary.high_severity_findings}
             </span>
             <span className="text-xs text-passed mb-1 font-semibold">
               {frameworks.length} Frameworks Active
@@ -160,7 +174,7 @@ export const Dashboard: React.FC = () => {
             <div className="flex-1 flex flex-col justify-end items-center group">
               <div
                 className="w-full max-w-[64px] bg-critical/90 hover:bg-critical rounded-t-md transition-all relative cursor-pointer shadow-[0_0_12px_rgba(239,68,68,0.25)]"
-                style={{ height: '28%' }}
+                style={{ height: `${(threatSummary.severity_breakdown.critical / maxSeverityCount) * 100}%` }}
               >
                 <div className="absolute -top-7 left-1/2 -translate-x-1/2 bg-surface-container-highest text-[11px] font-mono font-bold text-on-surface px-2 py-0.5 rounded border border-outline-variant opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
                   {threatSummary.severity_breakdown.critical} Critical
@@ -175,7 +189,7 @@ export const Dashboard: React.FC = () => {
             <div className="flex-1 flex flex-col justify-end items-center group">
               <div
                 className="w-full max-w-[64px] bg-high/90 hover:bg-high rounded-t-md transition-all relative cursor-pointer shadow-[0_0_12px_rgba(249,115,22,0.25)]"
-                style={{ height: '48%' }}
+                style={{ height: `${(threatSummary.severity_breakdown.high / maxSeverityCount) * 100}%` }}
               >
                 <div className="absolute -top-7 left-1/2 -translate-x-1/2 bg-surface-container-highest text-[11px] font-mono font-bold text-on-surface px-2 py-0.5 rounded border border-outline-variant opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
                   {threatSummary.severity_breakdown.high} High
@@ -190,7 +204,7 @@ export const Dashboard: React.FC = () => {
             <div className="flex-1 flex flex-col justify-end items-center group">
               <div
                 className="w-full max-w-[64px] bg-medium/90 hover:bg-medium rounded-t-md transition-all relative cursor-pointer shadow-[0_0_12px_rgba(234,179,8,0.25)]"
-                style={{ height: '82%' }}
+                style={{ height: `${(threatSummary.severity_breakdown.medium / maxSeverityCount) * 100}%` }}
               >
                 <div className="absolute -top-7 left-1/2 -translate-x-1/2 bg-surface-container-highest text-[11px] font-mono font-bold text-on-surface px-2 py-0.5 rounded border border-outline-variant opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
                   {threatSummary.severity_breakdown.medium} Medium
@@ -205,7 +219,7 @@ export const Dashboard: React.FC = () => {
             <div className="flex-1 flex flex-col justify-end items-center group">
               <div
                 className="w-full max-w-[64px] bg-low/90 hover:bg-low rounded-t-md transition-all relative cursor-pointer shadow-[0_0_12px_rgba(59,130,246,0.25)]"
-                style={{ height: '60%' }}
+                style={{ height: `${(threatSummary.severity_breakdown.low / maxSeverityCount) * 100}%` }}
               >
                 <div className="absolute -top-7 left-1/2 -translate-x-1/2 bg-surface-container-highest text-[11px] font-mono font-bold text-on-surface px-2 py-0.5 rounded border border-outline-variant opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
                   {threatSummary.severity_breakdown.low} Low
@@ -254,7 +268,7 @@ export const Dashboard: React.FC = () => {
 
           <div className="pt-4 border-t border-outline-variant mt-4 flex items-center justify-between text-xs text-on-surface-variant font-label">
             <span>Next Automated Scan:</span>
-            <span className="text-on-surface font-mono font-semibold">Today, 23:00 UTC</span>
+            <span className="text-on-surface font-mono font-semibold">{scheduleLabel}</span>
           </div>
         </div>
       </div>
@@ -279,7 +293,9 @@ export const Dashboard: React.FC = () => {
           </button>
         </div>
 
-        <div className="overflow-x-auto">
+        {criticalAndHigh.length === 0 ? (
+          <div className="rounded-xl border border-passed/20 bg-passed/5 p-8 text-center text-sm text-on-surface-variant">No critical or high findings require immediate remediation.</div>
+        ) : <div className="overflow-x-auto">
           <table className="w-full text-left text-sm whitespace-nowrap">
             <thead className="bg-slate-50 text-on-surface-variant font-semibold text-xs font-label uppercase tracking-wider border-b border-outline-variant">
               <tr>
@@ -339,7 +355,7 @@ export const Dashboard: React.FC = () => {
               ))}
             </tbody>
           </table>
-        </div>
+        </div>}
       </div>
     </div>
   );

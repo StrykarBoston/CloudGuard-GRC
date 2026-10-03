@@ -15,13 +15,18 @@ export interface Finding {
   rule_id: string;
   service_name: 'S3' | 'IAM' | 'EC2' | 'KMS' | 'CloudTrail' | string;
   resource_arn: string;
+  region: string;
   severity: Severity;
+  risk_score: number;
   status: FindingStatus;
   title: string;
   description?: string;
   impact?: string;
+  evidence: Record<string, unknown>;
   remediation_json: RemediationPayload;
   compliance_controls: string[];
+  assigned_to_user_id: string | null;
+  due_at: string | null;
   detected_at: string;
 }
 
@@ -76,13 +81,36 @@ export interface Tenant {
   subscription_plan: 'FREE' | 'PRO' | 'ENTERPRISE';
 }
 
+export interface Organization {
+  id: string;
+  name: string;
+  created_at: string;
+}
+
+export interface TenantSettings {
+  daily_scans_enabled: boolean;
+  daily_scan_hour_utc: number;
+  slack_alerts_enabled: boolean;
+  slack_webhook_configured: boolean;
+  scheduled_scans_available: boolean;
+}
+
+export interface AuditLog {
+  id: string;
+  tenant_id: string;
+  actor_id: string | null;
+  event_type: string;
+  details: Record<string, string>;
+  created_at: string;
+}
+
 export interface ThreatScoreSummary {
   threat_score: number;
   risk_level: 'Critical' | 'High' | 'Medium' | 'Low Risk';
   total_findings: number;
   findings_delta?: string;
-  scanned_resources: string;
-  active_policies: number;
+  resources_with_findings: number;
+  high_severity_findings: number;
   severity_breakdown: {
     critical: number;
     high: number;

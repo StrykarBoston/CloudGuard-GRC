@@ -16,6 +16,7 @@ import {
   Menu,
   X,
   HelpCircle,
+  History,
 } from 'lucide-react';
 
 export const AppShell: React.FC = () => {
@@ -30,11 +31,9 @@ export const AppShell: React.FC = () => {
   const isScanning = !!activeScan || isPending;
   const scanProgress = activeScan?.progress || 0;
 
-  const handleTriggerScan = () => {
-    if (accounts.length > 0) {
-      startScan(accounts[0].id);
-    }
-  };
+  const [selectedAccountId, setSelectedAccountId] = useState('');
+  const selectedAccount = accounts.find((account) => account.id === selectedAccountId) ?? accounts[0];
+  const handleTriggerScan = () => { if (selectedAccount) startScan(selectedAccount.id); };
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
   const handleLogout = () => {
@@ -47,6 +46,7 @@ export const AppShell: React.FC = () => {
     { label: 'Findings', to: '/findings', icon: AlertTriangle },
     { label: 'Compliance', to: '/compliance', icon: FileCheck2 },
     { label: 'Accounts', to: '/accounts', icon: Cloud },
+    { label: 'Audit Log', to: '/audit-logs', icon: History },
     { label: 'Settings', to: '/settings', icon: Settings },
   ];
 
@@ -175,9 +175,9 @@ export const AppShell: React.FC = () => {
             <div className="hidden sm:flex items-center gap-2 text-xs font-label bg-surface-container-low px-3 py-1.5 rounded-full border border-outline-variant">
               <span className="w-2 h-2 rounded-full bg-passed animate-pulse" />
               <span className="text-on-surface-variant font-medium">Active Target:</span>
-              <span className="text-on-surface font-semibold">
-                {accounts[0]?.account_alias || 'Production-AWS'}
-              </span>
+              <select aria-label="Active scan account" value={selectedAccount?.id ?? ''} onChange={(event) => setSelectedAccountId(event.target.value)} className="max-w-40 bg-transparent font-semibold text-on-surface outline-none">
+                {accounts.length === 0 ? <option value="">No accounts</option> : accounts.map((account) => <option key={account.id} value={account.id}>{account.account_alias}</option>)}
+              </select>
             </div>
           </div>
 

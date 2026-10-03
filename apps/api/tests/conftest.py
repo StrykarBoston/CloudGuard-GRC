@@ -1,25 +1,36 @@
+import pytest
 import pytest_asyncio
 from app.db import engine
-from app.models import Finding, Scan, Session, AuditLog, User, CloudAccount, Tenant
+from app.models import Tenant
 from sqlalchemy import delete
 
 
-@pytest_asyncio.fixture(autouse=True)
+@pytest_asyncio.fixture
 async def clean_database_fixture():
-    # Clear connection pool before test so a fresh connection is bound to current loop
     await engine.dispose()
-    preserved_emails = ["konaapvt@gmail.com", "alexsirin455@gmail.com", "admin@cloudguard.io"]
-    preserved_tenants = ["konaaa", "Alex Security Org", "CloudGuard Security"]
     async with engine.begin() as conn:
-        for table in [Finding, Scan, Session, AuditLog, CloudAccount]:
-            await conn.execute(delete(table))
-        await conn.execute(delete(User).where(~User.email.in_(preserved_emails)))
-        await conn.execute(delete(Tenant).where(~Tenant.name.in_(preserved_tenants)))
+        await conn.execute(delete(Tenant).where(Tenant.name.like("__CLOUDGUARD_TEST__:%")))
     yield
     async with engine.begin() as conn:
-        for table in [Finding, Scan, Session, AuditLog, CloudAccount]:
-            await conn.execute(delete(table))
-        await conn.execute(delete(User).where(~User.email.in_(preserved_emails)))
-        await conn.execute(delete(Tenant).where(~Tenant.name.in_(preserved_tenants)))
+        await conn.execute(delete(Tenant).where(Tenant.name.like("__CLOUDGUARD_TEST__:%")))
     await engine.dispose()
+
+
+@pytest.fixture
+def inline_scan_queue(monkeypatch):
+    from app.services.scanner import run_scan
+
+    class QueueStub:
+        async def aclose(self):
+            return None
+
+    async def get_queue():
+        return QueueStub()
+
+    async def enqueue(redis, scan_id: str, tenant_id: str) -> bool:
+        await run_scan(scan_id, tenant_id)
+        return True
+
+    monkeypatch.setattr("app.main.get_queue", get_queue)
+    monkeypatch.setattr("app.main.enqueue_scan", enqueue)
 

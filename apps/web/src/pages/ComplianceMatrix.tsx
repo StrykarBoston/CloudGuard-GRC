@@ -15,8 +15,14 @@ import { api } from '../services/api';
 export const ComplianceMatrix: React.FC = () => {
   const { data: frameworks = [], isLoading } = useCompliance();
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedFrameworkId, setSelectedFrameworkId] = useState<string>(frameworks[0]?.id || '');
+  const [selectedFrameworkId, setSelectedFrameworkId] = useState<string>('');
   const [exporting, setExporting] = useState(false);
+
+  React.useEffect(() => {
+    if (frameworks.length > 0 && !selectedFrameworkId) {
+      setSelectedFrameworkId(frameworks[0].id);
+    }
+  }, [frameworks, selectedFrameworkId]);
 
   const activeFramework =
     frameworks.find((f) => f.id === selectedFrameworkId) || frameworks[0];
@@ -97,7 +103,7 @@ export const ComplianceMatrix: React.FC = () => {
             className="flex items-center gap-2 px-4 py-2 bg-primary text-on-primary font-label font-semibold rounded-lg text-xs hover:bg-primary-container transition-colors shadow-sm shadow-blue-500/20"
           >
             <Download className="w-3.5 h-3.5" />
-            <span>{exporting ? 'Generating PDF...' : 'Export Audit PDF'}</span>
+            <span>{exporting ? 'Generating Report...' : 'Export HTML Report'}</span>
           </button>
         </div>
       </div>

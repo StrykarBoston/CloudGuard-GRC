@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { useScanStore } from '../store/useScanStore';
-import { useFindings, useFindingStatus } from '../hooks/useCloudGuard';
+import { useFindings, useFindingStatus, useOrganizationUsers } from '../hooks/useCloudGuard';
 import {
   Search,
   FilterX,
@@ -18,6 +18,7 @@ export const FindingsExplorer: React.FC = () => {
   const { selectedFinding, selectFinding } = useScanStore();
   const { data: findings = [], isLoading } = useFindings();
   const { mutate: updateStatus } = useFindingStatus();
+  const { data: organizationUsers = [] } = useOrganizationUsers();
 
   const suppressFinding = (id: string) => {
     updateStatus({ id, status: 'SUPPRESSED' });
@@ -27,6 +28,9 @@ export const FindingsExplorer: React.FC = () => {
   const resolveFinding = (id: string) => {
     updateStatus({ id, status: 'RESOLVED' });
     selectFinding(null);
+  };
+  const updateOwnership = (id: string, patch: { assigned_to_user_id?: string | null; due_at?: string | null }) => {
+    updateStatus({ id, ...patch }, { onSuccess: (finding) => selectFinding(finding) });
   };
 
   const [searchQuery, setSearchQuery] = useState('');
@@ -238,6 +242,7 @@ export const FindingsExplorer: React.FC = () => {
                     <span className="px-2 py-0.5 bg-slate-100 rounded text-xs font-mono border border-outline-variant text-on-surface font-medium">
                       {finding.service_name}
                     </span>
+                    <p className="mt-1 text-[10px] text-on-surface-variant">{finding.region}</p>
                   </td>
                   <td className="py-3.5 px-4 max-w-xs truncate font-mono text-xs text-on-surface-variant">
                     {finding.resource_arn}
@@ -296,10 +301,17 @@ export const FindingsExplorer: React.FC = () => {
                   className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold font-label ${
                     selectedFinding.severity === 'CRITICAL'
                       ? 'bg-critical/20 text-critical border border-critical/30'
-                      : 'bg-high/20 text-high border border-high/30'
+                      : selectedFinding.severity === 'HIGH'
+                      ? 'bg-high/20 text-high border border-high/30'
+                      : selectedFinding.severity === 'MEDIUM'
+                      ? 'bg-medium/20 text-medium border border-medium/30'
+                      : 'bg-low/20 text-low border border-low/30'
                   }`}
                 >
                   {selectedFinding.severity}
+                </span>
+                <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold font-label bg-slate-200 text-slate-800 border border-slate-300">
+                  Risk Score: {selectedFinding.risk_score}
                 </span>
                 <span className="text-xs font-mono text-on-surface-variant">
                   {selectedFinding.rule_id}
@@ -370,6 +382,16 @@ export const FindingsExplorer: React.FC = () => {
                   </span>
                 ))}
               </div>
+            </div>
+
+            <div className="grid gap-4 rounded-xl border border-outline-variant bg-slate-50 p-4 sm:grid-cols-2">
+              <label className="text-xs font-label"><span className="mb-1.5 block font-semibold text-on-surface">Assigned owner</span><select value={selectedFinding.assigned_to_user_id ?? ''} onChange={(event) => updateOwnership(selectedFinding.id, { assigned_to_user_id: event.target.value || null })} className="w-full rounded-lg border border-outline-variant bg-surface p-2 text-on-surface"><option value="">Unassigned</option>{organizationUsers.map((user) => <option key={user.id} value={user.id}>{user.full_name} ({user.role})</option>)}</select></label>
+              <label className="text-xs font-label"><span className="mb-1.5 block font-semibold text-on-surface">Due date</span><input type="datetime-local" value={selectedFinding.due_at ? selectedFinding.due_at.slice(0, 16) : ''} onChange={(event) => updateOwnership(selectedFinding.id, { due_at: event.target.value ? new Date(event.target.value).toISOString() : null })} className="w-full rounded-lg border border-outline-variant bg-surface p-2 text-on-surface" /></label>
+            </div>
+
+            <div>
+              <span className="mb-2 block text-xs font-label font-semibold uppercase tracking-wider text-on-surface-variant">Sanitized evidence</span>
+              <pre className="max-h-48 overflow-auto rounded-xl border border-outline-variant bg-slate-900 p-4 text-xs text-slate-100">{JSON.stringify(selectedFinding.evidence, null, 2)}</pre>
             </div>
 
             {/* Remediation Tabs */}

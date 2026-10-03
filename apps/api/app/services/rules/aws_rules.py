@@ -3,9 +3,11 @@ from app.services.rules.base import RemediationTemplate, RuleResult, SecurityRul
 
 
 def evaluate_root_mfa(account_context: Dict[str, Any]) -> Optional[RuleResult]:
-    account_id = account_context.get("account_number", "123456789012")
-    # If root MFA is not enabled in simulated or actual context
-    if not account_context.get("root_mfa_enabled", False):
+    account_id = account_context.get("account_number")
+    root_mfa_enabled = account_context.get("root_mfa_enabled")
+    if not account_id or root_mfa_enabled is None:
+        return None
+    if not root_mfa_enabled:
         return RuleResult(
             rule_id="aws.iam.root-mfa",
             service_name="IAM",
@@ -27,8 +29,10 @@ def evaluate_root_mfa(account_context: Dict[str, Any]) -> Optional[RuleResult]:
 
 
 def evaluate_s3_public_access_block(bucket_data: Dict[str, Any]) -> Optional[RuleResult]:
-    account_id = bucket_data.get("account_number", "123456789012")
-    bucket_name = bucket_data.get("bucket_name", f"local-audit-{account_id}")
+    account_id = bucket_data.get("account_number")
+    bucket_name = bucket_data.get("bucket_name")
+    if not account_id or not bucket_name:
+        return None
     block_config = bucket_data.get("public_access_block", {})
     is_safe = (
         block_config.get("BlockPublicAcls", False)
@@ -64,17 +68,20 @@ def evaluate_s3_public_access_block(bucket_data: Dict[str, Any]) -> Optional[Rul
 
 
 def evaluate_s3_encryption(bucket_data: Dict[str, Any]) -> Optional[RuleResult]:
-    account_id = bucket_data.get("account_number", "123456789012")
-    bucket_name = bucket_data.get("bucket_name", f"local-assets-{account_id}")
-    if not bucket_data.get("encryption_enabled", False):
+    account_id = bucket_data.get("account_number")
+    bucket_name = bucket_data.get("bucket_name")
+    encryption_enabled = bucket_data.get("encryption_enabled")
+    if not account_id or not bucket_name or encryption_enabled is None:
+        return None
+    if not encryption_enabled:
         return RuleResult(
             rule_id="aws.s3.default-encryption",
             service_name="S3",
             resource_arn=f"arn:aws:s3:::{bucket_name}",
-            severity="MEDIUM",
-            title="S3 bucket has no default encryption",
-            description=f"Bucket '{bucket_name}' is not configured with default server-side encryption (SSE).",
-            impact="Objects uploaded without explicit encryption flags will be stored in cleartext at rest.",
+            severity="LOW",
+            title="S3 bucket has no explicit default encryption policy",
+            description=f"Bucket '{bucket_name}' has no explicit encryption configuration. S3 applies SSE-S3 by default to new objects; an explicit policy is needed to enforce a selected algorithm or KMS key.",
+            impact="Without an explicit policy, the account cannot enforce a chosen encryption key or customer-managed key requirements for this bucket.",
             compliance_controls=["CIS AWS 2.1.2", "GDPR Art. 32", "ISO 27001 A.8.24"],
             remediation=RemediationTemplate(
                 explanation="Enable AES256 or AWS KMS default server-side encryption on the bucket.",
@@ -94,44 +101,54 @@ def evaluate_s3_encryption(bucket_data: Dict[str, Any]) -> Optional[RuleResult]:
 
 
 def evaluate_security_group_ssh(sg_data: Dict[str, Any]) -> Optional[RuleResult]:
-    account_id = sg_data.get("account_number", "123456789012")
-    sg_id = sg_data.get("group_id", "sg-local-audit")
-    open_ssh = False
+    account_id = sg_data.get("account_number")
+    sg_id = sg_data.get("group_id")
+    if not account_id or not sg_id:
+        return None
+    exposed_port = None
     for rule in sg_data.get("ip_permissions", []):
         from_port = rule.get("from_port")
         to_port = rule.get("to_port")
         ranges = [ip_range.get("cidr_ip") for ip_range in rule.get("ip_ranges", [])]
-        if (from_port is None or from_port <= 22 <= to_port) and ("0.0.0.0/0" in ranges or "::/0" in ranges):
-            open_ssh = True
+        if "0.0.0.0/0" in ranges or "::/0" in ranges:
+            if from_port is None or to_port is None:
+                exposed_port = 22
+            elif from_port <= 22 <= to_port:
+                exposed_port = 22
+            elif from_port <= 3389 <= to_port:
+                exposed_port = 3389
+        if exposed_port is not None:
             break
 
-    if open_ssh:
+    if exposed_port is not None:
         return RuleResult(
             rule_id="aws.ec2.security-group.open-admin",
             service_name="EC2",
             resource_arn=f"arn:aws:ec2:us-east-1:{account_id}:security-group/{sg_id}",
             severity="CRITICAL",
-            title="Security group permits unrestricted SSH",
-            description=f"Security group '{sg_id}' allows ingress on port 22 from 0.0.0.0/0.",
-            impact="Direct administrative SSH access is exposed to the entire public internet, risking brute-force compromise.",
+            title=f"Security group permits unrestricted administrative port {exposed_port}",
+            description=f"Security group '{sg_id}' allows ingress on port {exposed_port} from the public internet.",
+            impact="Publicly exposed administrative access increases the risk of unauthorized access and brute-force attacks.",
             compliance_controls=["CIS AWS 5.2", "ISO 27001 A.8.20"],
             remediation=RemediationTemplate(
-                explanation="Revoke ingress from 0.0.0.0/0 on port 22 and restrict SSH strictly to corporate VPN or bastion IP CIDRs.",
-                cli=f"aws ec2 revoke-security-group-ingress --group-id {sg_id} --protocol tcp --port 22 --cidr 0.0.0.0/0",
+                explanation=f"Restrict public ingress on port {exposed_port} to approved VPN or bastion CIDRs.",
+                cli=f"aws ec2 revoke-security-group-ingress --group-id {sg_id} --protocol tcp --port {exposed_port} --cidr 0.0.0.0/0",
                 terraform=f"""# In resource "aws_security_group" "{sg_id}":
-# Replace ingress 0.0.0.0/0 on port 22 with authorized bastion CIDR:
+# Replace public ingress on port {exposed_port} with an authorized bastion CIDR:
 # cidr_blocks = ["10.0.0.0/16"]"""
             ),
             internet_exposed=True,
-            evidence={"security_group_id": sg_id, "port": 22, "source": "0.0.0.0/0"}
+            evidence={"security_group_id": sg_id, "port": exposed_port, "source": "public CIDR"}
         )
     return None
 
 
 def evaluate_iam_wildcard(policy_data: Dict[str, Any]) -> Optional[RuleResult]:
-    account_id = policy_data.get("account_number", "123456789012")
-    policy_name = policy_data.get("policy_name", "LocalAuditBroadPolicy")
-    has_wildcard = policy_data.get("has_wildcard", True)
+    account_id = policy_data.get("account_number")
+    policy_name = policy_data.get("policy_name")
+    has_wildcard = policy_data.get("has_wildcard", False)
+    if not account_id or not policy_name:
+        return None
     if has_wildcard:
         return RuleResult(
             rule_id="aws.iam.wildcard-admin",
@@ -159,9 +176,11 @@ def evaluate_iam_wildcard(policy_data: Dict[str, Any]) -> Optional[RuleResult]:
 
 
 def evaluate_iam_stale_keys(key_data: Dict[str, Any]) -> Optional[RuleResult]:
-    account_id = key_data.get("account_number", "123456789012")
-    user_name = key_data.get("user_name", "deploy-service-account")
-    age_days = key_data.get("age_days", 120)
+    account_id = key_data.get("account_number")
+    user_name = key_data.get("user_name")
+    age_days = key_data.get("age_days")
+    if not account_id or not user_name or age_days is None:
+        return None
     if age_days > 90:
         return RuleResult(
             rule_id="aws.iam.stale-access-keys",
@@ -183,9 +202,11 @@ def evaluate_iam_stale_keys(key_data: Dict[str, Any]) -> Optional[RuleResult]:
 
 
 def evaluate_cloudtrail_logging(trail_data: Dict[str, Any]) -> Optional[RuleResult]:
-    account_id = trail_data.get("account_number", "123456789012")
-    is_logging = trail_data.get("is_logging", False)
-    is_multi_region = trail_data.get("is_multi_region", False)
+    account_id = trail_data.get("account_number")
+    is_logging = trail_data.get("is_logging")
+    is_multi_region = trail_data.get("is_multi_region")
+    if not account_id or is_logging is None or is_multi_region is None:
+        return None
     if not is_logging or not is_multi_region:
         return RuleResult(
             rule_id="aws.cloudtrail.logging-enabled",

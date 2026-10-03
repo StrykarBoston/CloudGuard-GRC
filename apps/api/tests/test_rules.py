@@ -62,6 +62,16 @@ def test_security_group_ssh_detection():
     assert result.rule_id == "aws.ec2.security-group.open-admin"
     assert result.severity == "CRITICAL"
 
+    rdp = evaluate_security_group_ssh({
+        "account_number": "111222333444",
+        "group_id": "sg-open-rdp",
+        "ip_permissions": [
+            {"from_port": 3389, "to_port": 3389, "ip_ranges": [{"cidr_ip": "0.0.0.0/0"}]}
+        ]
+    })
+    assert rdp is not None
+    assert rdp.evidence["port"] == 3389
+
     # Restricted CIDR
     clean = evaluate_security_group_ssh({
         "account_number": "111222333444",

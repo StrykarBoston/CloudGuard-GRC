@@ -10,14 +10,20 @@ import { ComplianceMatrix } from './pages/ComplianceMatrix';
 import { Accounts } from './pages/Accounts';
 import { AccountOnboarding } from './pages/AccountOnboarding';
 import { Settings } from './pages/Settings';
+import { AuditLog } from './pages/AuditLog';
 import { useAuthStore } from './store/useAuthStore';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 const queryClient = new QueryClient();
 
 function Protected({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated, restore } = useAuthStore();
+  const { isAuthenticated, isRestoring, restore } = useAuthStore();
   useEffect(() => { void restore(); }, [restore]);
+  
+  if (isRestoring) {
+    return <div className="flex h-screen w-full items-center justify-center bg-canvas text-on-surface">Loading CloudGuard GRC...</div>;
+  }
+  
   return isAuthenticated ? <>{children}</> : <Navigate to="/login" replace />;
 }
 
@@ -40,6 +46,7 @@ export function App() {
             <Route path="/accounts" element={<Accounts />} />
             <Route path="/accounts/onboard" element={<AccountOnboarding />} />
             <Route path="/settings" element={<Settings />} />
+            <Route path="/audit-logs" element={<AuditLog />} />
           </Route>
 
           {/* Root and Catch-All Redirects */}

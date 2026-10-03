@@ -2,6 +2,7 @@
 .env
 .env.*
 !.env.example
+.aws/
 postgres_data/
 localstack_data/
 
