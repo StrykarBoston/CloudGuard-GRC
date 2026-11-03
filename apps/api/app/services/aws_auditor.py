@@ -440,7 +440,9 @@ def scan_aws_account(account: CloudAccount) -> tuple[list[dict[str, Any]], list[
                             }
                         )
                         if result:
-                            port = 22 if start <= 22 <= end else 3389
+                            from_p = 0 if start is None else start
+                            to_p = 65535 if end is None else end
+                            port = 22 if from_p <= 22 <= to_p else 3389
                             result.title = f"Security group exposes administrative port {port}"
                             result.description = (
                                 f"Security group '{group['GroupId']}' permits "

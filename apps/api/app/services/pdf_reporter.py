@@ -47,7 +47,7 @@ def generate_audit_pdf(
         Spacer(1, 5 * mm),
         Paragraph("Framework Posture", base["Heading2"]),
     ]
-    framework_data = [["Framework", "Version", "Posture", "Passed", "Controls"]]
+    framework_data: list[list[Any]] = [["Framework", "Version", "Posture", "Passed", "Controls"]]
     for framework in frameworks:
         framework_data.append([
             Paragraph(escape(str(framework.name)), small),
@@ -66,7 +66,7 @@ def generate_audit_pdf(
         ("TOPPADDING", (0, 0), (-1, -1), 5),
     ]))
     story.extend([Spacer(1, 5 * mm), Paragraph("Open Findings", base["Heading2"])])
-    finding_data = [["Severity", "Rule", "Service / Region", "Resource", "Finding", "Remediation"]]
+    finding_data: list[list[Any]] = [["Severity", "Rule", "Service / Region", "Resource", "Finding", "Remediation"]]
     for finding in findings:
         remediation = finding.remediation_json or {}
         finding_data.append([

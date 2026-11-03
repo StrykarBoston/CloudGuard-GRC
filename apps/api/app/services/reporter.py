@@ -1,5 +1,6 @@
 from datetime import datetime, timezone
 from html import escape
+from collections.abc import Sequence
 from typing import Any, Dict, List
 
 
@@ -7,9 +8,9 @@ def generate_executive_html_report(
     organization_name: str,
     threat_score: int,
     risk_level: str,
-    accounts: List[Any],
-    frameworks: List[Any],
-    findings: List[Any],
+    accounts: Sequence[Any],
+    frameworks: Sequence[Any],
+    findings: Sequence[Any],
     generated_at: datetime | None = None
 ) -> str:
     """Generate a printable HTML executive compliance audit report."""

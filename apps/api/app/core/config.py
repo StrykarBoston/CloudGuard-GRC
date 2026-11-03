@@ -9,8 +9,8 @@ class Settings(BaseSettings):
 
     app_name: str = "CloudGuard GRC API"
     app_env: str = "development"
-    database_url: str
-    jwt_secret: str
+    database_url: str = ""
+    jwt_secret: str = "local-development-only-change-before-deployment"
     jwt_algorithm: str = "HS256"
     access_token_minutes: int = 15
     refresh_token_days: int = 30

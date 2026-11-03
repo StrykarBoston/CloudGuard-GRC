@@ -3,6 +3,7 @@ from contextlib import asynccontextmanager
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 import secrets
+from typing import Any, cast
 
 from fastapi import Depends, FastAPI, HTTPException, Query, Response, status, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -68,7 +69,7 @@ app.add_middleware(CORSMiddleware, allow_origins=settings.allowed_origins, allow
 
 limiter = Limiter(key_func=get_remote_address, storage_uri=settings.redis_url)
 app.state.limiter = limiter
-app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+app.add_exception_handler(RateLimitExceeded, cast(Any, _rate_limit_exceeded_handler))
 
 @app.middleware("http")
 async def add_security_headers(request: Request, call_next):
@@ -506,7 +507,7 @@ async def report_summary(user: User = Depends(current_user), repo: TenantReposit
 @app.get("/api/v1/reports/export")
 @app.get("/api/v1/reports/compliance/{framework_id}/export")
 async def export_audit_report(framework_id: str | None = None, user: User = Depends(current_user), repo: TenantRepository = Depends(get_tenant_repo), session: AsyncSession = Depends(get_session)) -> Response:
-    accounts = await repo.accounts()
+    accounts = list(await repo.accounts())
     framework_list = await compliance(user, repo)
     findings = await repo.findings()
     selected_framework_id = framework_id if framework_id and framework_id != "all" else None
