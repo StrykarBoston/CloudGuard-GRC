@@ -1,0 +1,11 @@
+{
+    "pythonVersion": "3.12",
+    "pythonPlatform": "Windows",
+    "venvPath": "",
+    "extraPaths": [
+        "apps/api"
+    ],
+    "reportMissingImports": "warning",
+    "typeCheckingMode": "basic"
+}
+

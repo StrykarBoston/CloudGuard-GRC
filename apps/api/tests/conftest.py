@@ -10,10 +10,27 @@ async def clean_database_fixture():
     await engine.dispose()
     async with engine.begin() as conn:
         await conn.execute(delete(Tenant).where(Tenant.name.like("__CLOUDGUARD_TEST__:%")))
+    try:
+        from app.core.config import get_settings
+        import redis.asyncio as aioredis
+        r = aioredis.from_url(get_settings().redis_url)
+        await r.flushdb()
+        await r.aclose()
+    except Exception:
+        pass
     yield
     async with engine.begin() as conn:
         await conn.execute(delete(Tenant).where(Tenant.name.like("__CLOUDGUARD_TEST__:%")))
+    try:
+        from app.core.config import get_settings
+        import redis.asyncio as aioredis
+        r = aioredis.from_url(get_settings().redis_url)
+        await r.flushdb()
+        await r.aclose()
+    except Exception:
+        pass
     await engine.dispose()
+
 
 
 @pytest.fixture

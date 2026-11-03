@@ -17,6 +17,7 @@ export const ComplianceMatrix: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedFrameworkId, setSelectedFrameworkId] = useState<string>('');
   const [exporting, setExporting] = useState(false);
+  const [exportingPdf, setExportingPdf] = useState(false);
 
   React.useEffect(() => {
     if (frameworks.length > 0 && !selectedFrameworkId) {
@@ -41,7 +42,7 @@ export const ComplianceMatrix: React.FC = () => {
     return <div className="flex justify-center items-center h-64"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>;
   }
 
-  const handleExportPDF = async () => {
+  const handleExportHTML = async () => {
     if (!activeFramework) return;
     setExporting(true);
     try {
@@ -62,6 +63,25 @@ export const ComplianceMatrix: React.FC = () => {
       alert('Unable to generate executive audit report. Please ensure the backend is connected.');
     } finally {
       setExporting(false);
+    }
+  };
+
+  const handleExportPDF = async () => {
+    if (!activeFramework) return;
+    setExportingPdf(true);
+    try {
+      const blob = await api.exportPdf(activeFramework.id);
+      const url = window.URL.createObjectURL(new Blob([blob], { type: 'application/pdf' }));
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `cloudguard_audit_report_${activeFramework.id}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch {
+      alert('Unable to generate PDF audit report. Please ensure the backend is connected.');
+    } finally {
+      setExportingPdf(false);
     }
   };
 
@@ -98,12 +118,23 @@ export const ComplianceMatrix: React.FC = () => {
           </div>
 
           <button
-            onClick={handleExportPDF}
+            onClick={handleExportHTML}
             disabled={exporting}
-            className="flex items-center gap-2 px-4 py-2 bg-primary text-on-primary font-label font-semibold rounded-lg text-xs hover:bg-primary-container transition-colors shadow-sm shadow-blue-500/20"
+            className="flex items-center gap-2 px-3.5 py-2 bg-surface border border-outline-variant text-on-surface font-label font-semibold rounded-lg text-xs hover:bg-surface-variant transition-colors shadow-xs"
+            title="Export interactive HTML report for the active framework"
+          >
+            <Download className="w-3.5 h-3.5 text-primary" />
+            <span>{exporting ? 'Exporting HTML...' : 'Export HTML'}</span>
+          </button>
+
+          <button
+            onClick={handleExportPDF}
+            disabled={exportingPdf}
+            className="flex items-center gap-2 px-3.5 py-2 bg-primary text-on-primary font-label font-semibold rounded-lg text-xs hover:bg-primary-container transition-colors shadow-sm shadow-blue-500/20"
+            title="Export official PDF audit report for the active framework"
           >
             <Download className="w-3.5 h-3.5" />
-            <span>{exporting ? 'Generating Report...' : 'Export HTML Report'}</span>
+            <span>{exportingPdf ? 'Exporting PDF...' : 'Export PDF'}</span>
           </button>
         </div>
       </div>

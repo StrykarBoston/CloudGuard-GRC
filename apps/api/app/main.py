@@ -2,6 +2,7 @@ import asyncio
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+import secrets
 
 from fastapi import Depends, FastAPI, HTTPException, Query, Response, status, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -17,10 +18,33 @@ from app.core.config import get_settings
 from app.core.security import create_token, new_refresh_token, password_hash, token_digest, verify_password
 from app.db import engine, get_session
 from app.dependencies import current_user, require_roles, get_tenant_repo
-from app.models import AuditLog, CloudAccount, Finding, Scan, Session, Tenant, TenantSettings, User
+from app.models import AuditLog, CloudAccount, Finding, PasswordResetToken, Scan, Session, Tenant, TenantSettings, User
 from app.queue import enqueue_scan, get_queue
 from app.repositories import TenantRepository
-from app.schemas import AccountOnboardIn, AccountOut, AuditLogOut, DashboardOut, FindingOut, FindingUpdateIn, FrameworkOut, LoginIn, OrganizationOut, RefreshIn, RegisterIn, ScanOut, ScanStartIn, TenantSettingsOut, TenantSettingsUpdate, TokenOut, UserOut
+from app.schemas import (
+    AccountOnboardIn,
+    AccountOut,
+    AuditLogOut,
+    DashboardOut,
+    FindingOut,
+    FindingUpdateIn,
+    ForgotPasswordIn,
+    ForgotPasswordOut,
+    FrameworkOut,
+    LoginIn,
+    OrganizationOut,
+    RefreshIn,
+    RegisterIn,
+    ResetPasswordIn,
+    ResetPasswordOut,
+    ScanOut,
+    ScanStartIn,
+    TenantSettingsOut,
+    TenantSettingsUpdate,
+    TokenOut,
+    UserOut,
+    VerifyResetTokenOut,
+)
 from app.services.aws_auditor import AwsAuditError, validate_aws_account
 from app.services.compliance import build_frameworks, framework_rule_ids
 from app.services.pdf_reporter import generate_audit_pdf
@@ -112,12 +136,21 @@ async def login(request: Request, response: Response, payload: LoginIn, session:
     if user is None or not user.is_active:
         raise HTTPException(status_code=401, detail="Invalid email or password")
     if user.locked_until and user.locked_until > now:
-        raise HTTPException(status_code=401, detail="Invalid email or password")
+        remaining_mins = max(1, int((user.locked_until - now).total_seconds() / 60))
+        raise HTTPException(
+            status_code=status.HTTP_423_LOCKED,
+            detail=f"Account is temporarily locked. Please try again in {remaining_mins} minute(s) or use 'Forgot password' to reset.",
+        )
     if not verify_password(payload.password, user.password_hash):
         user.failed_login_attempts += 1
         if user.failed_login_attempts >= 5:
             user.failed_login_attempts = 0
             user.locked_until = now + timedelta(minutes=15)
+            await session.commit()
+            raise HTTPException(
+                status_code=status.HTTP_423_LOCKED,
+                detail="Account temporarily locked for 15 minutes due to 5 failed attempts. Please reset your password to unlock immediately.",
+            )
         await session.commit()
         raise HTTPException(status_code=401, detail="Invalid email or password")
     user.failed_login_attempts = 0
@@ -152,6 +185,141 @@ async def logout(request: Request, response: Response, session: AsyncSession = D
     response.delete_cookie("access_token")
     response.delete_cookie("refresh_token", path="/api/v1/auth/refresh")
     return {"status": "ok"}
+
+@app.post("/api/v1/auth/forgot-password", response_model=ForgotPasswordOut)
+@limiter.limit("5/minute")
+async def forgot_password(
+    request: Request,
+    payload: ForgotPasswordIn,
+    session: AsyncSession = Depends(get_session),
+) -> ForgotPasswordOut:
+    user = await session.scalar(select(User).where(User.email == payload.email.lower()))
+    generic_msg = "If an account exists with this email address, password reset instructions have been generated."
+
+    if user is None or not user.is_active:
+        return ForgotPasswordOut(message=generic_msg)
+
+    # Invalidate previous unused reset tokens for this user
+    previous_tokens = await session.scalars(
+        select(PasswordResetToken).where(
+            PasswordResetToken.user_id == user.id,
+            PasswordResetToken.used.is_(False),
+        )
+    )
+    for pt in previous_tokens:
+        pt.used = True
+
+    # Generate secure random reset token
+    raw_token = secrets.token_urlsafe(32)
+    reset_entry = PasswordResetToken(
+        user_id=user.id,
+        token_hash=token_digest(raw_token),
+        expires_at=datetime.now(timezone.utc) + timedelta(hours=1),
+        used=False,
+    )
+    session.add(reset_entry)
+
+    # Record in audit log
+    session.add(AuditLog(
+        tenant_id=user.tenant_id,
+        actor_id=user.id,
+        event_type="auth.password_reset_requested",
+        details={"email": user.email, "ip": request.client.host if request.client else "unknown"},
+    ))
+
+    await session.commit()
+
+    return ForgotPasswordOut(
+        message=generic_msg,
+        reset_token=raw_token if settings.app_env != "production" else None,
+    )
+
+@app.get("/api/v1/auth/reset-password/verify", response_model=VerifyResetTokenOut)
+async def verify_reset_token(
+    token: str = Query(..., min_length=10),
+    session: AsyncSession = Depends(get_session),
+) -> VerifyResetTokenOut:
+    hashed = token_digest(token)
+    token_entry = await session.scalar(
+        select(PasswordResetToken).where(
+            PasswordResetToken.token_hash == hashed,
+            PasswordResetToken.used.is_(False),
+        )
+    )
+    now = datetime.now(timezone.utc)
+    if token_entry is None or token_entry.expires_at.replace(tzinfo=timezone.utc) < now:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Password reset link is invalid or has expired. Please request a new one.",
+        )
+
+    user = await session.get(User, token_entry.user_id)
+    if user is None or not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="User account associated with this token is no longer active.",
+        )
+
+    return VerifyResetTokenOut(valid=True, email=user.email)
+
+@app.post("/api/v1/auth/reset-password", response_model=ResetPasswordOut)
+@limiter.limit("5/minute")
+async def reset_password(
+    request: Request,
+    payload: ResetPasswordIn,
+    session: AsyncSession = Depends(get_session),
+) -> ResetPasswordOut:
+    hashed = token_digest(payload.token)
+    token_entry = await session.scalar(
+        select(PasswordResetToken).where(
+            PasswordResetToken.token_hash == hashed,
+            PasswordResetToken.used.is_(False),
+        )
+    )
+    now = datetime.now(timezone.utc)
+    if token_entry is None or token_entry.expires_at.replace(tzinfo=timezone.utc) < now:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Password reset link is invalid or has expired. Please request a new one.",
+        )
+
+    user = await session.get(User, token_entry.user_id)
+    if user is None or not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="User account associated with this token is no longer active.",
+        )
+
+    # Set new password hash and unlock account
+    user.password_hash = password_hash(payload.new_password)
+    user.failed_login_attempts = 0
+    user.locked_until = None
+    token_entry.used = True
+
+    # Invalidate all existing sessions
+    active_sessions = await session.scalars(
+        select(Session).where(
+            Session.user_id == user.id,
+            Session.revoked.is_(False),
+        )
+    )
+    for s in active_sessions:
+        s.revoked = True
+
+    # Record in audit log
+    session.add(AuditLog(
+        tenant_id=user.tenant_id,
+        actor_id=user.id,
+        event_type="auth.password_reset_completed",
+        details={"email": user.email, "ip": request.client.host if request.client else "unknown"},
+    ))
+
+    await session.commit()
+
+    return ResetPasswordOut(
+        status="ok",
+        message="Your password has been successfully updated. You may now sign in.",
+    )
 
 @app.get("/api/v1/auth/me", response_model=UserOut)
 async def me(user: User = Depends(current_user)) -> User: return user
@@ -367,22 +535,64 @@ async def export_audit_report(framework_id: str | None = None, user: User = Depe
     return Response(content=html_content, media_type="text/html", headers={"Content-Disposition": "inline; filename=cloudguard-audit-report.html"})
 
 @app.get("/api/v1/reports/export.pdf")
-async def export_audit_pdf(user: User = Depends(current_user), repo: TenantRepository = Depends(get_tenant_repo), session: AsyncSession = Depends(get_session)) -> Response:
-    summary = await dashboard(user, repo, session)
-    frameworks = await compliance(user, repo)
-    findings = [finding for finding in await repo.findings() if finding.status == "OPEN"]
+@app.get("/api/v1/reports/compliance/{framework_id}/export.pdf")
+async def export_audit_pdf(
+    framework_id: str | None = None,
+    user: User = Depends(current_user),
+    repo: TenantRepository = Depends(get_tenant_repo),
+    session: AsyncSession = Depends(get_session),
+) -> Response:
+    framework_list = await compliance(user, repo)
+    all_findings = await repo.findings()
+    selected_framework_id = framework_id if framework_id and framework_id != "all" else None
+
+    if selected_framework_id:
+        rule_ids = framework_rule_ids(selected_framework_id)
+        if rule_ids is None:
+            raise HTTPException(status_code=404, detail="Compliance framework not found")
+        frameworks = [item for item in framework_list if item.id == selected_framework_id]
+        findings = [finding for finding in all_findings if finding.status == "OPEN" and finding.rule_id in rule_ids]
+        severity_counts = {
+            severity: sum(f.severity == severity for f in findings)
+            for severity in ("CRITICAL", "HIGH", "MEDIUM", "LOW")
+        }
+        threat_score = min(
+            100,
+            severity_counts["CRITICAL"] * 25
+            + severity_counts["HIGH"] * 12
+            + severity_counts["MEDIUM"] * 5
+            + severity_counts["LOW"] * 2,
+        )
+        risk_level = (
+            "Critical"
+            if threat_score >= 75
+            else "High"
+            if threat_score >= 45
+            else "Medium"
+            if threat_score >= 20
+            else "Low Risk"
+        )
+        filename = f"cloudguard-audit-report-{selected_framework_id}.pdf"
+    else:
+        summary = await dashboard(user, repo, session)
+        frameworks = framework_list
+        findings = [finding for finding in all_findings if finding.status == "OPEN"]
+        threat_score = summary.threat_score
+        risk_level = summary.risk_level
+        filename = "cloudguard-audit-report.pdf"
+
     tenant = await session.get(Tenant, user.tenant_id)
     pdf_bytes = generate_audit_pdf(
         organization_name=tenant.name if tenant else "CloudGuard Organization",
-        threat_score=summary.threat_score,
-        risk_level=summary.risk_level,
+        threat_score=threat_score,
+        risk_level=risk_level,
         frameworks=frameworks,
         findings=findings,
     )
     return Response(
         content=pdf_bytes,
         media_type="application/pdf",
-        headers={"Content-Disposition": "attachment; filename=cloudguard-audit-report.pdf"},
+        headers={"Content-Disposition": f"attachment; filename={filename}"},
     )
 
 class SecretScanRequest(BaseModel):

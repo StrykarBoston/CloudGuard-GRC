@@ -54,6 +54,12 @@ export interface Scan { id: string; cloud_account_id: string; status: string; pr
 export const api = {
   register: (data: { organization_name: string; full_name: string; email: string; password: string }) => apiClient.post<Tokens>('/auth/register', data).then(r => r.data),
   login: (data: { email: string; password: string; remember_me: boolean }) => apiClient.post<Tokens>('/auth/login', data).then(r => r.data),
+  forgotPassword: (email: string) =>
+    apiClient.post<{ message: string; reset_token?: string }>('/auth/forgot-password', { email }).then(r => r.data),
+  verifyResetToken: (token: string) =>
+    apiClient.get<{ valid: boolean; email: string }>('/auth/reset-password/verify', { params: { token } }).then(r => r.data),
+  resetPassword: (data: { token: string; new_password: string }) =>
+    apiClient.post<{ status: string; message: string }>('/auth/reset-password', data).then(r => r.data),
   logout: () => apiClient.post('/auth/logout').then(r => r.data),
   me: () => apiClient.get<User>('/auth/me').then(r => r.data),
   accounts: () => apiClient.get<CloudAccount[]>('/cloud-accounts').then(r => r.data),
@@ -73,4 +79,6 @@ export const api = {
   reportUrl: () => `${apiClient.defaults.baseURL}/reports/summary`,
   exportReport: (frameworkId?: string) =>
     apiClient.get(`/reports/compliance/${frameworkId || 'all'}/export`, { responseType: 'blob' }).then(r => r.data),
+  exportPdf: (frameworkId?: string) =>
+    apiClient.get(`/reports/compliance/${frameworkId || 'all'}/export.pdf`, { responseType: 'blob' }).then(r => r.data),
 };

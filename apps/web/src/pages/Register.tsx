@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/useAuthStore';
-import { Shield, Mail, Lock, Building, User as UserIcon, Loader2 } from 'lucide-react';
+import { Shield, Mail, Lock, Building, User as UserIcon, Loader2, Eye, EyeOff } from 'lucide-react';
 
 export const Register: React.FC = () => {
   const navigate = useNavigate();
@@ -10,15 +10,26 @@ export const Register: React.FC = () => {
   const [company, setCompany] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true); setError(null);
-    try { await register(company, fullName, email, password); navigate('/accounts/onboard'); }
-    catch { setError('Registration failed. Use a unique email, organization name, and a password with at least 12 characters.'); }
-    finally { setLoading(false); }
+    setLoading(true);
+    setError(null);
+    try {
+      await register(company.trim(), fullName.trim(), email.trim().toLowerCase(), password);
+      navigate('/accounts/onboard');
+    } catch (err: unknown) {
+      const msg = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
+      setError(
+        msg ||
+          'Registration failed. Ensure email and organization are unique and password is at least 12 characters.'
+      );
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -103,20 +114,34 @@ export const Register: React.FC = () => {
               <Lock className="w-4 h-4" />
             </div>
             <input
-              type="password"
+              type={showPassword ? 'text' : 'password'}
               required
+              minLength={12}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="••••••••••••"
-              className="bg-surface border border-outline-variant text-on-surface text-sm rounded-lg focus:ring-1 focus:ring-primary focus:border-primary block w-full pl-9 p-2.5 placeholder-on-surface-variant/40"
+              placeholder="At least 12 characters"
+              className="bg-surface border border-outline-variant text-on-surface text-sm rounded-lg focus:ring-1 focus:ring-primary focus:border-primary block w-full pl-9 pr-10 p-2.5 placeholder-on-surface-variant/40"
             />
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              className="absolute inset-y-0 right-0 pr-3 flex items-center text-on-surface-variant/60 hover:text-on-surface transition-colors"
+            >
+              {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+            </button>
           </div>
         </div>
+
+        {error && (
+          <div className="p-3 rounded-lg bg-critical/10 border border-critical/20 text-xs text-critical">
+            {error}
+          </div>
+        )}
 
         <button
           type="submit"
           disabled={loading}
-          className="w-full mt-2 text-on-primary bg-primary hover:bg-primary-container focus:ring-4 focus:outline-none focus:ring-primary/30 font-semibold rounded-lg text-sm px-5 py-3 text-center font-headline transition-all active:scale-[0.98] shadow-md shadow-blue-500/20 flex items-center justify-center gap-2"
+          className="w-full mt-2 text-on-primary bg-primary hover:bg-primary-container focus:ring-4 focus:outline-none focus:ring-primary/30 font-semibold rounded-lg text-sm px-5 py-3 text-center font-headline transition-all active:scale-[0.98] shadow-md shadow-blue-500/20 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {loading ? (
             <Loader2 className="w-4 h-4 animate-spin" />
@@ -124,8 +149,6 @@ export const Register: React.FC = () => {
             'Complete Setup & Connect Cloud'
           )}
         </button>
-
-        {error && <p className="text-xs text-critical">{error}</p>}
 
         <div className="pt-2 text-center">
           <span className="text-xs text-on-surface-variant font-label">

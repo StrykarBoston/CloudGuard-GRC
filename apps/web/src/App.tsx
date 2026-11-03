@@ -4,6 +4,8 @@ import { AppShell } from './components/layout/AppShell';
 import { AuthLayout } from './components/layout/AuthLayout';
 import { Login } from './pages/Login';
 import { Register } from './pages/Register';
+import { ForgotPassword } from './pages/ForgotPassword';
+import { ResetPassword } from './pages/ResetPassword';
 import { Dashboard } from './pages/Dashboard';
 import { FindingsExplorer } from './pages/FindingsExplorer';
 import { ComplianceMatrix } from './pages/ComplianceMatrix';
@@ -36,6 +38,8 @@ export function App() {
           <Route element={<AuthLayout />}>
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
+            <Route path="/forgot-password" element={<ForgotPassword />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
           </Route>
 
           {/* Protected Application Routes inside AppShell */}

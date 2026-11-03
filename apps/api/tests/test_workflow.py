@@ -104,3 +104,13 @@ async def test_e2e_audit_workflow(monkeypatch, inline_scan_queue):
         assert "Root MFA is disabled" not in res.text
         res = await client.get("/api/v1/reports/compliance/not-a-framework/export")
         assert res.status_code == 404
+
+        # Framework-specific PDF export
+        pdf_res = await client.get("/api/v1/reports/compliance/gdpr/export.pdf")
+        assert pdf_res.status_code == 200
+        assert pdf_res.headers["content-type"] == "application/pdf"
+        assert pdf_res.content.startswith(b"%PDF-")
+        assert "cloudguard-audit-report-gdpr.pdf" in pdf_res.headers.get("content-disposition", "")
+
+        pdf_404 = await client.get("/api/v1/reports/compliance/not-a-framework/export.pdf")
+        assert pdf_404.status_code == 404
